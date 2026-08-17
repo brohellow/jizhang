@@ -2,3 +2,6 @@ node_modules/
 data/
 *.log
 .DS_Store
+.npm-cache/
+ecosystem.config.cjs
+project.private.config.json

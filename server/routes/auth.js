@@ -1,5 +1,5 @@
 import { Router } from 'express';
-import { db, hashPassword, verifyPassword, createSession, seedCategoriesForUser, createDefaultLedger } from '../db.js';
+import { db, hashPassword, verifyPassword, createSession, newToken, seedCategoriesForUser, createDefaultLedger } from '../db.js';
 import { requireAuth } from '../auth.js';
 
 const router = Router();
