@@ -1,0 +1,12 @@
+.login-page { padding: 120rpx 40rpx 0; }
+.logo { font-size: 120rpx; text-align: center; }
+.title { text-align: center; font-size: 44rpx; font-weight: 700; margin-top: 10rpx; }
+.sub { text-align: center; color: #8a94a6; font-size: 26rpx; margin: 12rpx 0 40rpx; }
+.pwd { margin-top: 20rpx; }
+.mt { margin-top: 30rpx; }
+.center { text-align: center; }
+.link { margin-top: 24rpx; color: #3b82f6; }
+.foot { margin-top: 60rpx; }
+.hint { min-height: 40rpx; margin-top: 20rpx; text-align: center; font-size: 26rpx; }
+.hint.error { color: #dc2626; }
+.hint.ok { color: #16a34a; }

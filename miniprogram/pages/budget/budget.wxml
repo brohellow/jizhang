@@ -1,0 +1,59 @@
+<view class="page">
+  <view class="topbar">
+    <picker mode="date" fields="month" value="{{month}}" bindchange="onMonthChange">
+      <view class="top-item">📅 {{month}} ▾</view>
+    </picker>
+  </view>
+
+  <!-- 总预算 -->
+  <view class="card">
+    <view class="section-title">{{monthLabel}} 总预算</view>
+    <block wx:if="{{overall}}">
+      <view class="progress">
+        <view class="progress-bar {{overallClass}}" style="width: {{overallPct}}%"></view>
+      </view>
+      <view class="budget-info">
+        <text>已支出 {{overall.spentText}} / 预算 {{overall.amountText}}（{{overall.pct}}%）</text>
+        <text class="{{overall.remaining >= 0 ? '' : 'expense'}}">{{overall.remaining >= 0 ? '剩余 ' + overall.remainingText : '超支 ' + overall.overText}}</text>
+      </view>
+      <view class="row btns">
+        <view class="btn-ghost flex1" bindtap="editOverall">调整</view>
+        <view class="btn-danger" bindtap="delBudget" data-id="{{overall.id}}">删除</view>
+      </view>
+    </block>
+    <block wx:else>
+      <view class="row">
+        <input class="input-box flex1" type="digit" placeholder="本月总预算（元）" value="{{overallInput}}" bindinput="onOverallInput" />
+        <view class="btn-primary set-btn" bindtap="saveOverall">设置</view>
+      </view>
+    </block>
+  </view>
+
+  <!-- 分类预算 -->
+  <view class="card">
+    <view class="section-title">分类预算</view>
+    <view wx:if="{{items.length === 0}}" class="empty">尚未设置分类预算</view>
+    <view wx:for="{{items}}" wx:key="id" class="budget-item">
+      <view class="b-icon">{{item.category_icon}}</view>
+      <view class="b-main">
+        <view class="b-name">{{item.category_name}}</view>
+        <view class="progress">
+          <view class="progress-bar {{item.cls}}" style="width: {{item.pct}}%"></view>
+        </view>
+        <view class="muted">已花 {{item.spentText}} / {{item.amountText}}（{{item.pct}}%）</view>
+      </view>
+      <view class="col-actions">
+        <view class="btn-ghost sm" bindtap="editItem" data-id="{{item.id}}" data-cat="{{item.category_id}}" data-amount="{{item.amount}}">调整</view>
+        <view class="btn-danger sm" bindtap="delBudget" data-id="{{item.id}}">删</view>
+      </view>
+    </view>
+
+    <view class="row add-row">
+      <picker range="{{expenseCats}}" range-key="name" value="{{catIndex}}" bindchange="onCatChange">
+        <view class="input-box cat-pick">{{expenseCats[catIndex] ? expenseCats[catIndex].icon + ' ' + expenseCats[catIndex].name : '选择分类'}}</view>
+      </picker>
+      <input class="input-box flex1" type="digit" placeholder="金额（元）" value="{{catAmount}}" bindinput="onCatAmount" />
+      <view class="btn-primary set-btn" bindtap="addItem">添加</view>
+    </view>
+  </view>
+</view>

@@ -1,0 +1,57 @@
+<view class="page">
+  <!-- 顶部：账本 + 月份 -->
+  <view class="topbar">
+    <picker range="{{ledgers}}" range-key="name" value="{{ledgerIndex}}" bindchange="onLedgerChange">
+      <view class="top-item">📒 {{ledgerName || '选择账本'}} ▾</view>
+    </picker>
+    <picker mode="date" fields="month" value="{{month}}" bindchange="onMonthChange">
+      <view class="top-item">📅 {{month}} ▾</view>
+    </picker>
+  </view>
+
+  <!-- 记账表单 -->
+  <view class="card">
+    <view class="type-toggle">
+      <view class="type-btn {{recordType === 'expense' ? 'active exp' : ''}}" data-type="expense" bindtap="setType">支出</view>
+      <view class="type-btn {{recordType === 'income' ? 'active inc' : ''}}" data-type="income" bindtap="setType">收入</view>
+    </view>
+
+    <view class="row form-row">
+      <input class="input-box amount" type="digit" placeholder="金额（元）" value="{{amount}}" bindinput="onAmount" />
+      <picker mode="date" value="{{date}}" bindchange="onDateChange">
+        <view class="input-box date">{{date}}</view>
+      </picker>
+    </view>
+
+    <view class="cat-grid">
+      <view wx:for="{{cats}}" wx:key="id" class="cat-item {{selectedCatId === item.id ? 'selected' : ''}}"
+            data-id="{{item.id}}" bindtap="selectCat">
+        <text class="cat-icon">{{item.icon}}</text>
+        <text class="cat-name">{{item.name}}</text>
+      </view>
+      <view wx:if="{{cats.length === 0}}" class="empty small">暂无分类，请到「我的」页添加</view>
+    </view>
+
+    <input class="input-box note" placeholder="备注（可选）" value="{{note}}" bindinput="onNote" />
+    <view class="btn-primary save" bindtap="saveRecord">{{editingId ? '保存修改' : '记一笔'}}</view>
+    <view wx:if="{{editingId}}" class="btn-ghost cancel" bindtap="cancelEdit">取消编辑</view>
+  </view>
+
+  <!-- 明细 -->
+  <view class="card list-card">
+    <view class="list-title">本月明细 <text class="muted">（共{{total}}条）</text></view>
+    <view wx:if="{{records.length === 0}}" class="empty">暂无记录</view>
+    <view wx:for="{{records}}" wx:key="id" class="rec-item" data-index="{{index}}" bindtap="editRecord">
+      <view class="rec-icon">{{item.category_icon || '📌'}}</view>
+      <view class="rec-main">
+        <view class="rec-name">{{item.category_name || '未分类'}}{{item.note ? ' · ' + item.note : ''}}</view>
+        <view class="rec-date muted">{{item.record_date}}</view>
+      </view>
+      <view class="rec-amount {{item.type === 'income' ? 'income' : 'expense'}}">
+        {{item.type === 'income' ? '+' : '-'}}{{money(item.amount)}}
+      </view>
+      <view class="rec-del" data-id="{{item.id}}" catchtap="delRecord">删</view>
+    </view>
+    <view wx:if="{{hasMore}}" class="btn-ghost more" bindtap="loadMore">加载更多</view>
+  </view>
+</view>

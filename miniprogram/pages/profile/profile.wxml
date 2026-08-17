@@ -1,0 +1,64 @@
+<view class="page">
+  <view class="card user-card">
+    <view class="avatar">👤</view>
+    <view class="u-info">
+      <view class="u-name">{{nickname}}</view>
+      <view class="muted">@{{username}}</view>
+    </view>
+    <view class="btn-ghost logout" bindtap="logout">退出</view>
+  </view>
+
+  <view class="card">
+    <view class="section-title">账本</view>
+    <view wx:for="{{ledgers}}" wx:key="id" class="ledger-item">
+      <view class="l-main">
+        <view class="l-name">{{item.name}} {{item.id === currentLedgerId ? '（当前）' : ''}}</view>
+        <view class="muted">{{item.record_count || 0}} 条记录</view>
+      </view>
+      <block wx:if="{{item.id === currentLedgerId}}">
+        <view class="btn-ghost sm" bindtap="renameLedger" data-id="{{item.id}}" data-name="{{item.name}}">改名</view>
+      </block>
+      <block wx:else>
+        <view class="btn-primary sm" bindtap="activateLedger" data-id="{{item.id}}">设为当前</view>
+        <view class="btn-danger sm" bindtap="deleteLedger" data-id="{{item.id}}">删除</view>
+      </block>
+    </view>
+    <view wx:if="{{ledgers.length === 0}}" class="empty">还没有账本</view>
+    <view class="row add-row">
+      <input class="input-box flex1" placeholder="新账本名称" value="{{newLedger}}" bindinput="onNewLedger" />
+      <view class="btn-primary set-btn" bindtap="createLedger">创建</view>
+    </view>
+  </view>
+
+  <view class="card">
+    <view class="section-title">分类管理</view>
+    <view class="cat-group">
+      <view class="cat-group-title">支出分类</view>
+      <view wx:for="{{expenseCats}}" wx:key="id" class="cat-item">
+        <text class="cat-ic">{{item.icon}}</text>
+        <text class="cat-name">{{item.name}}</text>
+        <view class="btn-ghost sm" bindtap="renameCat" data-id="{{item.id}}" data-name="{{item.name}}" data-icon="{{item.icon}}">改名</view>
+        <view class="btn-danger sm" bindtap="deleteCat" data-id="{{item.id}}">删</view>
+      </view>
+    </view>
+    <view class="cat-group">
+      <view class="cat-group-title">收入分类</view>
+      <view wx:for="{{incomeCats}}" wx:key="id" class="cat-item">
+        <text class="cat-ic">{{item.icon}}</text>
+        <text class="cat-name">{{item.name}}</text>
+        <view class="btn-ghost sm" bindtap="renameCat" data-id="{{item.id}}" data-name="{{item.name}}" data-icon="{{item.icon}}">改名</view>
+        <view class="btn-danger sm" bindtap="deleteCat" data-id="{{item.id}}">删</view>
+      </view>
+    </view>
+    <view class="row add-row">
+      <picker range="{{catTypes}}" value="{{catTypeIndex}}" bindchange="onCatTypeChange">
+        <view class="input-box cat-type">{{catTypes[catTypeIndex]}}</view>
+      </picker>
+      <input class="input-box flex1" placeholder="分类名称" value="{{newCat}}" bindinput="onNewCat" />
+      <input class="input-box ic" placeholder="emoji" value="{{newCatIcon}}" bindinput="onNewCatIcon" />
+      <view class="btn-primary set-btn" bindtap="createCat">添加</view>
+    </view>
+  </view>
+
+  <view class="muted center foot">后端：{{baseUrl}}</view>
+</view>

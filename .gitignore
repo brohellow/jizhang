@@ -5,3 +5,7 @@ data/
 .npm-cache/
 ecosystem.config.cjs
 project.private.config.json
+# 仓库根目录的旧版小程序残留（实际项目在 miniprogram/）
+/app.json
+/pages/
+/project.config.json

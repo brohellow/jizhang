@@ -51,8 +51,14 @@ npm start            # 启动，默认 http://localhost:3000
 │   ├── app.js
 │   └── vendor/echarts.min.js
 ├── scripts/
-│   ├── smoke-test.mjs       # 核心 API 冒烟测试
-│   └── edge-test.mjs        # 边界/权限测试
+│   ├── smoke-test.mjs           # 核心 API 冒烟测试
+│   ├── edge-test.mjs            # 边界/权限测试
+│   └── miniprogram-flow-test.mjs # 小程序端 API 流程模拟测试
+├── miniprogram/             # 微信小程序端（导入微信开发者工具即可用）
+│   ├── app.json / app.js / app.wxss
+│   ├── project.config.json
+│   ├── utils/               # config(后端地址) / api / format / charts
+│   └── pages/               # login / records / stats / budget / profile
 ├── data/                    # SQLite 数据文件（自动创建，已 gitignore）
 └── package.json
 ```

@@ -1,0 +1,23 @@
+<view class="login-page">
+  <view class="logo">📒</view>
+  <view class="title">记账本</view>
+  <view class="sub">微信一键登录 · 多账本 · 预算 · 统计</view>
+
+  <view class="card">
+    <block wx:if="{{manual}}">
+      <input class="input-box" placeholder="用户名" value="{{username}}" bindinput="onUsername" />
+      <input class="input-box pwd" password placeholder="密码" value="{{password}}" bindinput="onPassword" />
+      <view class="btn-primary mt" bindtap="doManualLogin">登 录</view>
+      <view class="muted center mt">没有账号？请先在网页版 http://124.222.195.163 注册</view>
+    </block>
+    <block wx:else>
+      <view class="btn-primary" bindtap="doWxLogin">微信一键登录</view>
+      <view class="muted center mt">若微信登录失败，请改用账号密码登录</view>
+    </block>
+
+    <view class="hint {{hintType}}">{{hint}}</view>
+    <view class="muted center link" bindtap="toggleManual">{{manual ? '返回微信一键登录' : '使用账号密码登录'}}</view>
+  </view>
+
+  <view class="muted center foot">后端地址：{{baseUrl}}</view>
+</view>

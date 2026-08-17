@@ -1,0 +1,50 @@
+<view class="page">
+  <view class="topbar">
+    <picker mode="date" fields="month" value="{{month}}" bindchange="onMonthChange">
+      <view class="top-item">📅 {{month}} ▾</view>
+    </picker>
+  </view>
+
+  <view class="card">
+    <view class="stat-row">
+      <view class="stat">
+        <view class="stat-label muted">收入</view>
+        <view class="stat-value income">{{incomeText}}</view>
+      </view>
+      <view class="stat">
+        <view class="stat-label muted">支出</view>
+        <view class="stat-value expense">{{expenseText}}</view>
+      </view>
+      <view class="stat">
+        <view class="stat-label muted">结余</view>
+        <view class="stat-value">{{netText}}</view>
+      </view>
+    </view>
+    <view class="stat-row second">
+      <view class="stat">
+        <view class="stat-label muted">笔数</view>
+        <view class="stat-value">{{countText}}</view>
+      </view>
+      <view class="stat">
+        <view class="stat-label muted">预算进度</view>
+        <view class="stat-value {{budgetOver ? 'expense' : ''}}">{{budgetText}}</view>
+      </view>
+    </view>
+  </view>
+
+  <view class="card">
+    <view class="chart-title">近 12 个月收支趋势</view>
+    <canvas type="2d" id="trendCanvas" class="chart"></canvas>
+  </view>
+
+  <view class="card">
+    <view class="chart-title">{{monthLabel}} 支出分类占比</view>
+    <canvas type="2d" id="pieCanvas" class="chart pie"></canvas>
+    <view wx:if="{{pieItems.length === 0}}" class="empty">本月暂无支出</view>
+    <view wx:for="{{pieItems}}" wx:key="category_id" class="legend-item">
+      <view class="legend-dot" style="background: {{item.color}}"></view>
+      <view class="legend-name">{{item.category_icon}} {{item.category_name}}</view>
+      <view class="legend-val">{{item.pct}}% · ¥{{item.yuan}}</view>
+    </view>
+  </view>
+</view>

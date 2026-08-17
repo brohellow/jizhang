@@ -1,0 +1,23 @@
+.page { padding-bottom: 40rpx; }
+.user-card { display: flex; align-items: center; gap: 20rpx; }
+.avatar { font-size: 64rpx; }
+.u-info { flex: 1; }
+.u-name { font-size: 32rpx; font-weight: 600; }
+.logout { padding: 10rpx 28rpx; }
+.section-title { font-size: 30rpx; font-weight: 600; margin-bottom: 12rpx; }
+.ledger-item { display: flex; align-items: center; gap: 12rpx; padding: 16rpx 0; border-bottom: 1rpx solid #f1f5f9; }
+.l-main { flex: 1; }
+.l-name { font-size: 28rpx; }
+.sm { padding: 8rpx 18rpx; font-size: 24rpx; }
+.add-row { margin-top: 20rpx; }
+.flex1 { flex: 1; }
+.set-btn { padding: 16rpx 30rpx; margin-left: 12rpx; }
+.cat-group { margin-top: 16rpx; }
+.cat-group-title { font-size: 26rpx; color: #8a94a6; margin-bottom: 6rpx; }
+.cat-item { display: flex; align-items: center; gap: 14rpx; padding: 12rpx 0; border-bottom: 1rpx solid #f1f5f9; }
+.cat-ic { font-size: 32rpx; }
+.cat-name { flex: 1; font-size: 28rpx; }
+.cat-type { width: 150rpx; }
+.ic { width: 120rpx; margin-left: 12rpx; }
+.center { text-align: center; }
+.foot { margin-top: 40rpx; }
