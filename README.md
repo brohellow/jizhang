@@ -102,6 +102,7 @@ npm start            # 启动，默认 http://localhost:3000
 | 方法 | 路径 | 说明 |
 |---|---|---|
 | GET | `/records` | 列表。参数：`ledger_id? type? category_id? from? to? keyword? page? pageSize?` |
+| GET | `/records/export` | 导出 CSV（参数同列表，返回 `text/csv` 附件，最多 5 万条）。网页版「明细」筛选栏有「导出 CSV」按钮 |
 | POST | `/records` | 新增 `{ledger_id?, type, category_id?, amount(元), note?, record_date?}` |
 | PUT | `/records/:id` | 编辑 |
 | DELETE | `/records/:id` | 删除 |
@@ -157,7 +158,24 @@ sudo apt-get install -y nginx certbot python3-certbot-nginx
 sudo certbot --nginx -d jizhang.example.com
 ```
 
-- 数据文件在 `data/jizhang.db`，**备份 = 拷贝这个文件**（建议加个 cron 定时备份到对象存储）。
+- 数据文件在 `data/jizhang.db`（WAL 模式，单文件）。
+
+### 数据自动备份
+
+内置一致性快照备份脚本（`VACUUM INTO`，不会产生损坏备份），默认保留最近 14 份：
+
+```bash
+node scripts/backup-db.mjs   # 备份到 backups/，可设 JZ_BACKUP_KEEP 控制保留份数
+```
+
+服务器上配置每天凌晨 2:30 自动备份：
+
+```bash
+(crontab -l 2>/dev/null; echo "30 2 * * * /usr/bin/node /opt/jizhang/scripts/backup-db.mjs >> /opt/jizhang/backups/backup.log 2>&1") | crontab -
+```
+
+恢复：用任意一份备份文件替换 `data/jizhang.db` 后 `pm2 restart jizhang-api` 即可。
+
 - 生产环境建议加一层限流（如 `express-rate-limit`）防止暴力登录。
 
 ## 测试

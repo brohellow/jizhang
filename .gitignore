@@ -9,3 +9,5 @@ project.private.config.json
 /app.json
 /pages/
 /project.config.json
+# 数据库备份
+/backups/

@@ -60,6 +60,64 @@ function rowWithCategory(id) {
   `).get(id);
 }
 
+// CSV 导出（与列表相同的筛选条件，导出全部匹配记录）
+router.get('/export', (req, res) => {
+  const ledgerId = req.query.ledger_id ? Number(req.query.ledger_id) : req.user.currentLedgerId;
+  if (!ledgerId) return res.status(400).json({ error: '请先创建账本' });
+  if (!checkLedger(ledgerId, req.user.id, res)) return;
+
+  const where = ['r.ledger_id = ?'];
+  const params = [ledgerId];
+  if (req.query.type === 'expense' || req.query.type === 'income') {
+    where.push('r.type = ?');
+    params.push(req.query.type);
+  }
+  if (req.query.category_id) {
+    where.push('r.category_id = ?');
+    params.push(Number(req.query.category_id));
+  }
+  if (req.query.from) {
+    where.push('r.record_date >= ?');
+    params.push(req.query.from);
+  }
+  if (req.query.to) {
+    where.push('r.record_date <= ?');
+    params.push(req.query.to);
+  }
+  if (req.query.keyword) {
+    where.push('r.note LIKE ?');
+    params.push('%' + req.query.keyword + '%');
+  }
+  const whereSql = 'WHERE ' + where.join(' AND ');
+  const rows = db.prepare(`
+    SELECT r.record_date, r.type, r.amount, r.note, c.name AS category_name, l.name AS ledger_name
+    FROM records r
+    LEFT JOIN categories c ON c.id = r.category_id
+    LEFT JOIN ledgers l ON l.id = r.ledger_id
+    ` + whereSql + ' ORDER BY r.record_date ASC, r.id ASC LIMIT 50000')
+    .all(...params);
+
+  const esc = (v) => {
+    const s = String(v == null ? '' : v);
+    return /[",\n]/.test(s) ? '"' + s.replace(/"/g, '""') + '"' : s;
+  };
+  const lines = ['\uFEFF日期,类型,金额(元),分类,备注,账本'];
+  rows.forEach((r) => {
+    lines.push([
+      esc(r.record_date),
+      esc(r.type === 'expense' ? '支出' : '收入'),
+      (r.amount / 100).toFixed(2),
+      esc(r.category_name || ''),
+      esc(r.note || ''),
+      esc(r.ledger_name || ''),
+    ].join(','));
+  });
+  const stamp = new Date().toISOString().slice(0, 10).replace(/-/g, '');
+  res.setHeader('Content-Type', 'text/csv; charset=utf-8');
+  res.setHeader('Content-Disposition', 'attachment; filename="jizhang-' + stamp + '.csv"');
+  res.send(lines.join('\n'));
+});
+
 // 记录列表（分页 + 多条件筛选）
 router.get('/', (req, res) => {
   const ledgerId = req.query.ledger_id ? Number(req.query.ledger_id) : req.user.currentLedgerId;

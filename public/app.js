@@ -259,6 +259,37 @@
     }).catch(function (e) { toast(e.message); });
   }
 
+  // 按当前筛选条件导出 CSV
+  function exportRecords() {
+    var month = $('#filter-month').value || '';
+    var from = month ? month + '-01' : '';
+    var to = month ? month + '-31' : '';
+    var params = ['ledger_id=' + state.currentLedgerId];
+    if (from) params.push('from=' + from);
+    if (to) params.push('to=' + to);
+    var type = $('#filter-type').value;
+    if (type) params.push('type=' + type);
+    var cat = $('#filter-category').value;
+    if (cat) params.push('category_id=' + cat);
+    var kw = $('#filter-keyword').value.trim();
+    if (kw) params.push('keyword=' + encodeURIComponent(kw));
+    var headers = { 'Authorization': 'Bearer ' + state.token };
+    fetch('/api/records/export?' + params.join('&'), { headers: headers })
+      .then(function (resp) {
+        if (!resp.ok) return resp.json().then(function (d) { throw new Error((d && d.error) || '导出失败'); });
+        return resp.blob();
+      })
+      .then(function (blob) {
+        var a = document.createElement('a');
+        a.href = URL.createObjectURL(blob);
+        a.download = 'jizhang-' + (month || 'all') + '.csv';
+        document.body.appendChild(a);
+        a.click();
+        setTimeout(function () { URL.revokeObjectURL(a.href); a.remove(); }, 1000);
+      })
+      .catch(function (e) { toast(e.message); });
+  }
+
   function renderRecordList() {
     var box = $('#record-list');
     if (state.lastItems.length === 0) {
@@ -770,6 +801,7 @@
     $('#filter-type').onchange = function () { state.recordPage = 1; loadRecords(); };
     $('#filter-category').onchange = function () { state.recordPage = 1; loadRecords(); };
     $('#filter-keyword').oninput = debounce(function () { state.recordPage = 1; loadRecords(); }, 400);
+  $('#btn-export').onclick = exportRecords;
     $('#page-prev').onclick = function () { if (state.recordPage > 1) { state.recordPage--; loadRecords(); } };
     $('#page-next').onclick = function () {
       var totalPages = Math.max(1, Math.ceil(state.recordTotal / state.recordPageSize));
