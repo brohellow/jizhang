@@ -1,0 +1,17 @@
+{
+  "name": "jizhang-app",
+  "version": "1.0.0",
+  "private": true,
+  "type": "module",
+  "description": "记账软件：多账本、预算管理、统计报表（Web 前端 + REST API，可对接微信小程序）",
+  "scripts": {
+    "start": "node server/index.js",
+    "dev": "node --watch server/index.js"
+  },
+  "engines": {
+    "node": ">=22.5.0"
+  },
+  "dependencies": {
+    "express": "^4.19.2"
+  }
+}
