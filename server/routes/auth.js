@@ -1,6 +1,7 @@
 import { Router } from 'express';
 import { db, hashPassword, verifyPassword, createSession, newToken, seedCategoriesForUser, createDefaultLedger } from '../db.js';
 import { requireAuth } from '../auth.js';
+import { recordLoginFailure, clearLoginAttempts } from '../rate-limit.js';
 
 const router = Router();
 
@@ -34,13 +35,21 @@ router.post('/register', (req, res) => {
   res.json({ token, user: buildUserPayload(userId) });
 });
 
-// 登录
+// 登录（带失败锁定：错 5 次锁 15 分钟，防暴力破解）
 router.post('/login', (req, res) => {
   const { username, password } = req.body || {};
   if (!username || !password) return res.status(400).json({ error: '用户名和密码不能为空' });
   const u = db.prepare('SELECT * FROM users WHERE username = ?').get(username);
   if (!u || !verifyPassword(password, u.password_hash)) {
+    // 记录失败（由 loginThrottle 中间件维护计数）
+    if (req.loginAttemptKey && req.loginAttemptsMap) {
+      recordLoginFailure(req.loginAttemptKey, req.loginAttemptsMap, 5, 15 * 60 * 1000);
+    }
     return res.status(401).json({ error: '用户名或密码错误' });
+  }
+  // 登录成功：清零该账号/IP 的失败计数
+  if (req.loginAttemptKey && req.loginAttemptsMap) {
+    clearLoginAttempts(req.loginAttemptKey, req.loginAttemptsMap);
   }
   const token = createSession(u.id);
   res.json({ token, user: publicUser(u) });

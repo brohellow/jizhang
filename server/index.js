@@ -2,6 +2,7 @@ import express from 'express';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { ensureDemoUser } from './db.js';
+import { rateLimit, loginThrottle } from './rate-limit.js';
 import authRoutes from './routes/auth.js';
 import ledgerRoutes from './routes/ledgers.js';
 import categoryRoutes from './routes/categories.js';
@@ -14,6 +15,28 @@ const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const app = express();
 
 app.use(express.json());
+
+// ===== 安全限流（防恶意注册 / 暴力破解 / 刷接口） =====
+// 注册：每 IP 每小时最多 10 次
+app.use('/api/auth/register', rateLimit({
+  windowMs: 60 * 60 * 1000,
+  max: 10,
+  message: '注册过于频繁，请 1 小时后再试',
+}));
+// 登录：每 IP 每 15 分钟最多 30 次 + 账号级失败锁定（错 5 次锁 15 分钟）
+app.use('/api/auth/login', loginThrottle());
+app.use('/api/auth/login', rateLimit({
+  windowMs: 15 * 60 * 1000,
+  max: 30,
+  message: '登录尝试过于频繁，请 15 分钟后再试',
+}));
+// 发短信/其他敏感接口预留（暂无）
+// 全局 API：每 IP 每分钟 300 次（宽松，防刷爆）
+app.use('/api', rateLimit({
+  windowMs: 60 * 1000,
+  max: 300,
+  message: '请求过于频繁，请稍后再试',
+}));
 
 app.use('/api/auth', authRoutes);
 app.use('/api/ledgers', ledgerRoutes);
