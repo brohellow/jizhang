@@ -1,15 +1,17 @@
 :root {
-  --bg: #f4f6fa;
+  --bg: #faf7f2;
   --card: #ffffff;
-  --border: #e5e9f0;
-  --text: #1f2937;
-  --muted: #8a94a6;
-  --primary: #3b82f6;
-  --primary-dark: #2563eb;
-  --income: #16a34a;
-  --expense: #dc2626;
-  --radius: 12px;
-  --shadow: 0 1px 3px rgba(16, 24, 40, 0.08);
+  --border: #ece5da;
+  --text: #33302b;
+  --muted: #9a9286;
+  --primary: #4a7c59;
+  --primary-dark: #3c6849;
+  --primary-soft: #eef4ef;
+  --income: #2e8b57;
+  --expense: #c96a4e;
+  --amber: #d9a441;
+  --radius: 10px;
+  --shadow: 0 1px 2px rgba(80, 65, 40, 0.05), 0 4px 16px rgba(80, 65, 40, 0.05);
 }
 * { box-sizing: border-box; margin: 0; padding: 0; }
 body {
@@ -17,7 +19,7 @@ body {
   background: var(--bg);
   color: var(--text);
   font-size: 14px;
-  line-height: 1.6;
+  line-height: 1.65;
 }
 .hidden { display: none !important; }
 .muted { color: var(--muted); }
@@ -33,12 +35,12 @@ body {
   font-family: inherit;
 }
 .btn:active { transform: scale(.97); }
-.btn.primary { background: var(--primary); color: #fff; }
-.btn.primary:hover { background: var(--primary-dark); }
+.btn.primary { background: var(--primary); color: #fff; box-shadow: 0 2px 8px rgba(74, 124, 89, .25); }
+.btn.primary:hover { background: var(--primary-dark); box-shadow: 0 3px 12px rgba(74, 124, 89, .3); }
 .btn.ghost { background: transparent; border: 1px solid var(--border); color: var(--text); }
-.btn.ghost:hover { background: #f1f5f9; }
-.btn.danger { background: #fef2f2; color: var(--expense); border: 1px solid #fecaca; }
-.btn.danger:hover { background: #fee2e2; }
+.btn.ghost:hover { background: #f6f1e8; }
+.btn.danger { background: #fdf1ee; color: var(--expense); border: 1px solid #f2d3ca; }
+.btn.danger:hover { background: #fbe4dd; }
 .btn.block { width: 100%; }
 .btn.sm { padding: 4px 10px; font-size: 13px; }
 
@@ -59,11 +61,11 @@ input:focus, select:focus { border-color: var(--primary); box-shadow: 0 0 0 3px 
   background: var(--card);
   border: 1px solid var(--border);
   border-radius: var(--radius);
-  padding: 18px;
+  padding: 20px;
   box-shadow: var(--shadow);
   margin-bottom: 16px;
 }
-.card h2 { font-size: 16px; margin-bottom: 12px; }
+.card h2 { font-size: 15px; margin-bottom: 14px; color: var(--text); display: flex; align-items: center; gap: 8px; }
 .card h3 { font-size: 14px; margin: 14px 0 8px; color: var(--muted); font-weight: 600; }
 .grid-2 { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; }
 .row { display: flex; gap: 8px; margin-bottom: 10px; }
@@ -81,23 +83,27 @@ input:focus, select:focus { border-color: var(--primary); box-shadow: 0 0 0 3px 
   align-items: center;
   justify-content: center;
   padding: 20px;
+  background:
+    radial-gradient(1200px 500px at 15% -10%, #f3ead9 0%, transparent 60%),
+    radial-gradient(900px 400px at 110% 110%, #e4efe6 0%, transparent 55%),
+    var(--bg);
 }
 .login-card {
   width: 100%;
   max-width: 380px;
   background: var(--card);
   border: 1px solid var(--border);
-  border-radius: 16px;
-  padding: 32px;
-  box-shadow: 0 8px 30px rgba(16, 24, 40, .1);
+  border-radius: 18px;
+  padding: 36px 32px;
+  box-shadow: 0 10px 40px rgba(80, 65, 40, .12);
 }
-.login-card .logo { text-align: center; font-size: 28px; }
-.login-card .sub { text-align: center; color: var(--muted); margin-bottom: 20px; font-size: 13px; }
+.login-card .logo { text-align: center; font-size: 30px; }
+.login-card .sub { text-align: center; color: var(--muted); margin-bottom: 24px; font-size: 13px; }
 .tabs-mini { display: flex; margin-bottom: 16px; background: var(--bg); border-radius: 8px; padding: 4px; }
 .tabs-mini button {
   flex: 1; border: none; background: transparent; padding: 7px; border-radius: 6px; cursor: pointer; font-size: 14px; color: var(--muted);
 }
-.tabs-mini button.active { background: #fff; color: var(--primary); font-weight: 600; box-shadow: var(--shadow); }
+.tabs-mini button.active { background: var(--primary-soft); color: var(--primary-dark); font-weight: 600; }
 .login-card input { margin-bottom: 10px; }
 .login-card .btn { margin-top: 4px; padding: 10px; }
 .hint { margin-top: 12px; text-align: center; font-size: 13px; color: var(--expense); min-height: 18px; }
@@ -108,14 +114,16 @@ header {
   position: sticky;
   top: 0;
   z-index: 20;
-  background: var(--card);
+  background: rgba(255, 255, 255, 0.92);
+  backdrop-filter: blur(8px);
+  -webkit-backdrop-filter: blur(8px);
   border-bottom: 1px solid var(--border);
   display: flex;
   align-items: center;
   gap: 16px;
-  padding: 10px 20px;
+  padding: 12px 20px;
 }
-.brand { font-size: 18px; font-weight: 700; }
+.brand { font-size: 18px; font-weight: 800; letter-spacing: 0.5px; }
 .ledger-switch { display: flex; align-items: center; gap: 6px; }
 .ledger-switch select { width: auto; min-width: 140px; padding: 6px 10px; }
 .user-box { margin-left: auto; display: flex; align-items: center; gap: 10px; }
@@ -123,12 +131,14 @@ header {
 
 .tabs {
   display: flex;
-  gap: 4px;
-  padding: 10px 20px 0;
-  background: var(--card);
+  gap: 2px;
+  padding: 8px 20px 0;
+  background: rgba(255, 255, 255, 0.92);
+  backdrop-filter: blur(8px);
+  -webkit-backdrop-filter: blur(8px);
   border-bottom: 1px solid var(--border);
   position: sticky;
-  top: 52px;
+  top: 54px;
   z-index: 19;
 }
 .tabs button {
@@ -148,7 +158,7 @@ main { max-width: 1100px; margin: 0 auto; padding: 20px; }
 .tab-pane.active { display: block; }
 
 /* ---------- 记账页 ---------- */
-.type-toggle { display: flex; margin-bottom: 10px; background: var(--bg); border-radius: 8px; padding: 4px; }
+.type-toggle { display: flex; margin-bottom: 10px; background: #f2ede2; border-radius: 10px; padding: 4px; }
 .type-toggle button {
   flex: 1; border: none; background: transparent; padding: 8px; border-radius: 6px; cursor: pointer; font-size: 15px; color: var(--muted);
 }
@@ -179,7 +189,7 @@ main { max-width: 1100px; margin: 0 auto; padding: 20px; }
   color: var(--text);
 }
 .category-grid button .ic { font-size: 20px; }
-.category-grid button.selected { border-color: var(--primary); background: #eff6ff; color: var(--primary-dark); }
+.category-grid button.selected { border-color: var(--primary); background: var(--primary-soft); color: var(--primary-dark); box-shadow: inset 0 0 0 1px var(--primary); }
 #record-form > input[type="text"], #record-form > input[type="number"] { margin-bottom: 10px; }
 
 .record-list { min-height: 60px; }
@@ -205,22 +215,22 @@ main { max-width: 1100px; margin: 0 auto; padding: 20px; }
 
 /* ---------- 统计页 ---------- */
 .stat-cards { display: grid; grid-template-columns: repeat(auto-fit, minmax(150px, 1fr)); gap: 12px; }
-.stat { background: #f8fafc; border: 1px solid var(--border); border-radius: 10px; padding: 14px; text-align: center; }
+.stat { background: var(--card); border: 1px solid var(--border); border-radius: 12px; padding: 16px 12px; text-align: center; box-shadow: var(--shadow); }
 .stat .label { color: var(--muted); font-size: 12px; }
-.stat .value { font-size: 20px; font-weight: 700; margin-top: 4px; font-variant-numeric: tabular-nums; }
+.stat .value { font-size: 20px; font-weight: 700; margin-top: 5px; font-variant-numeric: tabular-nums; }
 .chart { width: 100%; height: 300px; }
 
 /* ---------- 预算页 ---------- */
 .budget-overall { margin-bottom: 14px; }
 .progress {
   height: 8px;
-  background: #eef2f7;
+  background: #efe9dd;
   border-radius: 99px;
   overflow: hidden;
   margin: 6px 0;
 }
 .progress > div { height: 100%; background: var(--primary); border-radius: 99px; transition: width .3s; }
-.progress.warn > div { background: #f59e0b; }
+.progress.warn > div { background: var(--amber); }
 .progress.over > div { background: var(--expense); }
 .budget-item {
   display: flex;
@@ -260,13 +270,13 @@ main { max-width: 1100px; margin: 0 auto; padding: 20px; }
   top: 70px;
   left: 50%;
   transform: translateX(-50%);
-  background: #1f2937;
+  background: #3a3631;
   color: #fff;
-  padding: 9px 18px;
-  border-radius: 8px;
+  padding: 10px 20px;
+  border-radius: 10px;
   font-size: 14px;
   z-index: 100;
-  box-shadow: 0 4px 16px rgba(0, 0, 0, .25);
+  box-shadow: 0 6px 20px rgba(60, 50, 35, .3);
   max-width: 80vw;
 }
 
