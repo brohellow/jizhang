@@ -820,12 +820,27 @@
     }).catch(function (e) { toast(e.message); });
   }
 
+  function isDarkTheme() {
+    var theme = localStorage.getItem('jz_theme') || 'system';
+    if (theme === 'dark') return true;
+    if (theme === 'light') return false;
+    return window.matchMedia('(prefers-color-scheme: dark)').matches;
+  }
+
   function chartBase(el) {
     if (typeof echarts === 'undefined') {
       el.innerHTML = '<div class="empty">图表库未加载（请检查 vendor/echarts.min.js）</div>';
       return null;
     }
-    return echarts.init(el);
+    return echarts.init(el, null, { renderer: 'canvas' });
+  }
+
+  // 图表文字颜色（跟随主题）
+  function chartTextColor() {
+    return isDarkTheme() ? '#c9c2b6' : '#33302b';
+  }
+  function chartAxisColor() {
+    return isDarkTheme() ? '#4a463e' : '#e5e9f0';
   }
 
   function trendChart(monthly) {
@@ -835,12 +850,14 @@
       if (!chart) return;
       state.charts.trend = chart;
     }
+    var tc = chartTextColor(), ac = chartAxisColor();
     state.charts.trend.setOption({
+      textStyle: { color: tc },
       tooltip: { trigger: 'axis', valueFormatter: function (v) { return '¥' + (v / 100).toFixed(2); } },
-      legend: { data: ['收入', '支出'] },
+      legend: { data: ['收入', '支出'], textStyle: { color: tc } },
       grid: { left: 60, right: 20, top: 40, bottom: 30 },
-      xAxis: { type: 'category', data: monthly.map(function (m) { return m.month.slice(2); }) },
-      yAxis: { type: 'value' },
+      xAxis: { type: 'category', data: monthly.map(function (m) { return m.month.slice(2); }), axisLabel: { color: tc }, axisLine: { lineStyle: { color: ac } } },
+      yAxis: { type: 'value', axisLabel: { color: tc }, splitLine: { lineStyle: { color: ac } } },
       series: [
         { name: '收入', type: 'bar', data: monthly.map(function (m) { return m.income; }), itemStyle: { color: '#16a34a' }, barMaxWidth: 16 },
         { name: '支出', type: 'bar', data: monthly.map(function (m) { return m.expense; }), itemStyle: { color: '#dc2626' }, barMaxWidth: 16 },
@@ -858,15 +875,17 @@
     var data = byCat.map(function (c) {
       return { name: (c.category_icon || '') + ' ' + (c.category_name || '未分类'), value: c.amount };
     });
+    var tc = chartTextColor();
     state.charts.pie.setOption({
+      textStyle: { color: tc },
       tooltip: { trigger: 'item', valueFormatter: function (v) { return '¥' + (v / 100).toFixed(2); } },
-      legend: { type: 'scroll', bottom: 0 },
+      legend: { type: 'scroll', bottom: 0, textStyle: { color: tc } },
       series: [{
         type: 'pie',
         radius: ['38%', '68%'],
         center: ['50%', '45%'],
         data: data,
-        label: { formatter: '{b}\n{d}%' },
+        label: { formatter: '{b}\n{d}%', color: tc },
       }],
     }, true);
   }
@@ -878,12 +897,14 @@
       if (!chart) return;
       state.charts.daily = chart;
     }
+    var tc = chartTextColor(), ac = chartAxisColor();
     state.charts.daily.setOption({
+      textStyle: { color: tc },
       tooltip: { trigger: 'axis', valueFormatter: function (v) { return '¥' + (v / 100).toFixed(2); } },
-      legend: { data: ['收入', '支出'] },
+      legend: { data: ['收入', '支出'], textStyle: { color: tc } },
       grid: { left: 60, right: 20, top: 40, bottom: 30 },
-      xAxis: { type: 'category', data: daily.map(function (d) { return Number(d.day.slice(8)); }) },
-      yAxis: { type: 'value' },
+      xAxis: { type: 'category', data: daily.map(function (d) { return Number(d.day.slice(8)); }), axisLabel: { color: tc }, axisLine: { lineStyle: { color: ac } } },
+      yAxis: { type: 'value', axisLabel: { color: tc }, splitLine: { lineStyle: { color: ac } } },
       series: [
         { name: '收入', type: 'bar', data: daily.map(function (d) { return d.income; }), itemStyle: { color: '#16a34a' }, barMaxWidth: 10 },
         { name: '支出', type: 'bar', data: daily.map(function (d) { return d.expense; }), itemStyle: { color: '#dc2626' }, barMaxWidth: 10 },
@@ -1148,6 +1169,37 @@
     }).catch(function (e) { toast(e.message); });
   }
 
+  // ================= 主题切换 =================
+  function applyTheme(theme) {
+    // theme: 'dark' | 'light' | 'system'
+    var root = document.documentElement;
+    if (theme === 'system') {
+      root.removeAttribute('data-theme');
+      $('#btn-theme').textContent = window.matchMedia('(prefers-color-scheme: dark)').matches ? '🌙' : '☀️';
+    } else if (theme === 'dark') {
+      root.setAttribute('data-theme', 'dark');
+      $('#btn-theme').textContent = '☀️';
+    } else {
+      root.setAttribute('data-theme', 'light');
+      $('#btn-theme').textContent = '🌙';
+    }
+    localStorage.setItem('jz_theme', theme || 'system');
+    // 刷新图表配色（若已渲染）
+    Object.keys(state.charts).forEach(function (k) {
+      if (state.charts[k]) {
+        state.charts[k].dispose();
+        state.charts[k] = null;
+      }
+    });
+    var activeTab = document.querySelector('.tabs button.active');
+    if (activeTab && activeTab.dataset.tab === 'stats') renderStats();
+  }
+
+  function initTheme() {
+    var saved = localStorage.getItem('jz_theme') || 'system';
+    applyTheme(saved);
+  }
+
   // ================= Tab 切换 =================
   function switchTab(name) {
     document.querySelectorAll('.tabs button').forEach(function (b) {
@@ -1200,6 +1252,13 @@
     };
 
     // 个人中心
+    // 主题切换
+    $('#btn-theme').onclick = function () {
+      var cur = localStorage.getItem('jz_theme') || 'system';
+      var next = cur === 'dark' ? 'light' : cur === 'light' ? 'system' : 'dark';
+      applyTheme(next);
+    };
+
     $('#user-nickname').onclick = openProfile;
     $('#user-nickname').onkeydown = function (e) {
       if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); openProfile(); }
@@ -1336,6 +1395,7 @@
 
   // ================= 启动 =================
   bindEvents();
+  initTheme();
   if (state.token) {
     bootApp();
   } else {
