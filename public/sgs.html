@@ -162,14 +162,17 @@ main { max-width:900px; margin:24px auto; padding:0 16px; }
     alert('已复制：\n' + text);
   }
 
-  // 创建房间
+  // 创建房间（仅由用户点击按钮触发；页面加载绝不自动创建）
   document.getElementById('btn-create').onclick = function () {
     if (!token) { alert('请先登录'); return; }
     var mode = document.getElementById('mode-select').value;
     api('/rooms', { method: 'POST', body: { mode: mode } }).then(function (d) {
-      if (!d.ok) { alert(d.error || '创建失败'); return; }
+      if (!d.ok || !d.roomcode) {
+        alert((d && d.error) || '创建失败：未获得房间号，请确认游戏服务器已启动');
+        return;
+      }
       document.getElementById('m-roomcode').textContent = d.roomcode;
-      document.getElementById('m-mode').textContent = d.mode;
+      document.getElementById('m-mode').textContent = d.mode || mode;
       // 连接串兜底：后端异常或用户名为空时手动组装，保证不为空
       var cs = d.connect_str || ('124.222.195.163:8080 ' + (username || nickname || '玩家') + '@' + d.roomcode);
       document.getElementById('m-connectstr').textContent = cs;
@@ -187,6 +190,8 @@ main { max-width:900px; margin:24px auto; padding:0 16px; }
     if (e.target === this) this.classList.add('hidden');
   };
 
+  // 页面加载时确保成功弹窗是隐藏的（绝不自动弹出）
+  document.getElementById('create-modal').classList.add('hidden');
   loadRooms();
   setInterval(loadRooms, 5000);
 })();
