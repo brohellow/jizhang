@@ -99,6 +99,10 @@
       .then(function (data) {
         state.token = data.token;
         localStorage.setItem('jz_token', data.token);
+        if (data.user) {
+          localStorage.setItem('jz_username', data.user.username || '');
+          localStorage.setItem('jz_nickname', data.user.nickname || '');
+        }
         bootApp();
       })
       .catch(function (e) { $('#login-hint').textContent = e.message; });
@@ -110,6 +114,10 @@
       .then(function (data) {
         state.token = data.token;
         localStorage.setItem('jz_token', data.token);
+        if (data.user) {
+          localStorage.setItem('jz_username', data.user.username || '');
+          localStorage.setItem('jz_nickname', data.user.nickname || '');
+        }
         bootApp();
       })
       .catch(function (e) { $('#login-hint').textContent = e.message; });

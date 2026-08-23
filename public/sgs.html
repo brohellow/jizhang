@@ -1,0 +1,171 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>三国杀 · 联机大厅</title>
+<style>
+:root { --primary:#4f7df9; --bg:#f6f8fc; --card:#fff; --border:#e6ebf2; --text:#1e2a3a; --muted:#8b96a8; }
+* { box-sizing:border-box; margin:0; padding:0; }
+body { font-family:-apple-system,BlinkMacSystemFont,"Segoe UI","PingFang SC","Microsoft YaHei",sans-serif; background:var(--bg); color:var(--text); min-height:100vh; }
+header { background:var(--card); border-bottom:1px solid var(--border); padding:16px 24px; display:flex; align-items:center; gap:16px; }
+header h1 { font-size:20px; }
+header .user { margin-left:auto; color:var(--muted); font-size:14px; }
+main { max-width:900px; margin:24px auto; padding:0 16px; }
+.card { background:var(--card); border:1px solid var(--border); border-radius:14px; padding:24px; margin-bottom:16px; box-shadow:0 2px 12px rgba(30,42,58,.05); }
+.card h2 { font-size:16px; margin-bottom:14px; }
+.btn { border:none; border-radius:10px; padding:10px 18px; font-size:14px; cursor:pointer; font-family:inherit; font-weight:500; }
+.btn.primary { background:var(--primary); color:#fff; }
+.btn.ghost { background:#f0f4fa; color:var(--text); }
+.btn:disabled { opacity:.5; cursor:not-allowed; }
+.rooms { width:100%; border-collapse:collapse; }
+.rooms th, .rooms td { padding:12px 14px; text-align:left; border-bottom:1px solid var(--border); font-size:14px; }
+.rooms th { color:var(--muted); font-weight:500; font-size:13px; }
+.rooms tr:hover td { background:#f8fafc; }
+.status { padding:3px 10px; border-radius:99px; font-size:12px; }
+.status.waiting { background:#e8effe; color:#4f7df9; }
+.status.playing { background:#e8f8ef; color:#16a34a; }
+.empty { text-align:center; color:var(--muted); padding:30px 0; }
+.modal-mask { position:fixed; inset:0; background:rgba(0,0,0,.4); display:flex; align-items:center; justify-content:center; z-index:100; }
+.modal { background:#fff; border-radius:16px; padding:28px; max-width:480px; width:90%; }
+.modal h3 { margin-bottom:16px; }
+.conn-box { background:#f4f7fb; border:1px solid var(--border); border-radius:10px; padding:14px; font-family:monospace; font-size:14px; word-break:break-all; margin:12px 0; }
+.muted { color:var(--muted); font-size:13px; }
+.mode-select { padding:8px 12px; border:1px solid var(--border); border-radius:10px; font-size:14px; margin-right:10px; }
+.tip { background:#fff7ed; border:1px solid #fed7aa; color:#9a3412; border-radius:10px; padding:12px 14px; font-size:13px; margin-top:14px; }
+</style>
+</head>
+<body>
+<header>
+  <h1>⚔️ 三国杀 · 联机大厅</h1>
+  <div class="user" id="user-info"></div>
+</header>
+<main>
+  <div class="card">
+    <h2>创建房间</h2>
+    <select class="mode-select" id="mode-select">
+      <option value="identity">身份局</option>
+      <option value="guozhan">国战</option>
+      <option value="versus">1v1</option>
+      <option value="doudizhu">斗地主</option>
+    </select>
+    <button class="btn primary" id="btn-create">创建房间</button>
+    <div class="tip">创建后你会得到一个「连接串」，把它复制，在琉璃杀游戏里点「联机」→ 粘贴到地址栏 → 回车，即可用你的网站账号进入房间。</div>
+  </div>
+
+  <div class="card">
+    <h2>房间列表（每 5 秒刷新）</h2>
+    <table class="rooms">
+      <thead><tr><th>房间号</th><th>房主</th><th>模式</th><th>状态</th><th>操作</th></tr></thead>
+      <tbody id="room-list"></tbody>
+    </table>
+    <div class="empty" id="room-empty">暂无房间，点击上方「创建房间」开启一局</div>
+  </div>
+</main>
+
+<!-- 创建成功弹窗 -->
+<div class="modal-mask hidden" id="create-modal">
+  <div class="modal">
+    <h3>✅ 房间创建成功</h3>
+    <p class="muted">房间号：<b id="m-roomcode"></b>（模式：<span id="m-mode"></span>）</p>
+    <div class="conn-box" id="m-connectstr"></div>
+    <button class="btn ghost" id="btn-copy">复制连接串</button>
+    <button class="btn primary" id="btn-close">完成</button>
+  </div>
+</div>
+
+<script>
+(function(){
+  var token = localStorage.getItem('jz_token') || '';
+  var nickname = localStorage.getItem('jz_nickname') || '';
+  var username = localStorage.getItem('jz_username') || '';
+
+  // 未登录处理
+  var ui = document.getElementById('user-info');
+  if (!token) {
+    ui.textContent = '未登录';
+    document.getElementById('btn-create').disabled = true;
+  } else {
+    ui.textContent = '👤 ' + (nickname || username || '已登录');
+  }
+
+  function api(path, opts) {
+    opts = opts || {};
+    var headers = { 'Content-Type': 'application/json' };
+    if (token) headers['Authorization'] = 'Bearer ' + token;
+    return fetch('/api/sgs' + path, {
+      method: opts.method || 'GET',
+      headers: headers,
+      body: opts.body ? JSON.stringify(opts.body) : undefined,
+    }).then(function (r) { return r.json().catch(function(){ return {}; }); });
+  }
+
+  function renderRooms(data) {
+    var tbody = document.getElementById('room-list');
+    var empty = document.getElementById('room-empty');
+    var rooms = (data && data.rooms) || [];
+    tbody.innerHTML = '';
+    empty.style.display = rooms.length ? 'none' : 'block';
+    rooms.forEach(function (r) {
+      var tr = document.createElement('tr');
+      var st = r.status === 'playing' ? '<span class="status playing">游戏中</span>' : '<span class="status waiting">等待中</span>';
+      tr.innerHTML =
+        '<td><b>' + r.roomcode + '</b></td>' +
+        '<td>' + (r.nickname || '未知') + '</td>' +
+        '<td>' + (r.mode || 'identity') + '</td>' +
+        '<td>' + st + '</td>' +
+        '<td><button class="btn ghost" data-code="' + r.roomcode + '">复制连接串</button></td>';
+      tbody.appendChild(tr);
+    });
+    tbody.querySelectorAll('button[data-code]').forEach(function (b) {
+      b.onclick = function () {
+        var str = '124.222.195.163:8080 ' + (username || '') + '@' + b.dataset.code;
+        copyText(str);
+      };
+    });
+  }
+
+  function loadRooms() {
+    if (!token) return;
+    api('/rooms').then(renderRooms).catch(function(){});
+  }
+
+  function copyText(text) {
+    var ta = document.createElement('textarea');
+    ta.value = text;
+    document.body.appendChild(ta);
+    ta.select();
+    try { document.execCommand('copy'); } catch(e) {}
+    document.body.removeChild(ta);
+    alert('已复制：\n' + text);
+  }
+
+  // 创建房间
+  document.getElementById('btn-create').onclick = function () {
+    if (!token) { alert('请先登录'); return; }
+    var mode = document.getElementById('mode-select').value;
+    api('/rooms', { method: 'POST', body: { mode: mode } }).then(function (d) {
+      if (!d.ok) { alert(d.error || '创建失败'); return; }
+      document.getElementById('m-roomcode').textContent = d.roomcode;
+      document.getElementById('m-mode').textContent = d.mode;
+      document.getElementById('m-connectstr').textContent = d.connect_str;
+      document.getElementById('create-modal').classList.remove('hidden');
+      loadRooms();
+    }).catch(function (e) { alert('创建失败: ' + e.message); });
+  };
+  document.getElementById('btn-copy').onclick = function () {
+    copyText(document.getElementById('m-connectstr').textContent);
+  };
+  document.getElementById('btn-close').onclick = function () {
+    document.getElementById('create-modal').classList.add('hidden');
+  };
+  document.querySelector('.modal-mask').onclick = function (e) {
+    if (e.target === this) this.classList.add('hidden');
+  };
+
+  loadRooms();
+  setInterval(loadRooms, 5000);
+})();
+</script>
+</body>
+</html>
