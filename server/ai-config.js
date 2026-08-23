@@ -46,11 +46,11 @@ export function configTemplate() {
     ].join('\n'),
     providers: [
       {
-        name: 'DeepSeek',
-        provider: 'deepseek',
-        base_url: '',
+        name: 'SenseNova 商汤',
+        provider: 'custom',
+        base_url: 'https://token.sensenova.cn/v1',
         api_key: 'sk-在此填入你的APIKey',
-        models: ['deepseek-chat', 'deepseek-reasoner'],
+        models: ['sensenova-6.8-flash-lite', 'sensenova-u1-fast', 'deepseek-v4-flash', 'glm-5.2'],
         enabled: true,
       },
     ],
