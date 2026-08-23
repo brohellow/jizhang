@@ -432,3 +432,24 @@ main { max-width: 1100px; margin: 0 auto; padding: 20px; }
 .ai-toggle-row { display: flex; align-items: center; gap: 8px; margin: 4px 0 10px; font-size: 14px; cursor: pointer; }
 .ai-toggle-row input { width: auto; margin: 0; }
 #ai-provider { margin-bottom: 10px; }
+
+/* AI 供应商列表 */
+.ai-provider-item {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 10px;
+  padding: 10px 2px;
+  border-bottom: 1px solid var(--border);
+}
+.ai-provider-item:last-child { border-bottom: none; }
+.ai-p-main { flex: 1; min-width: 0; }
+.ai-p-name { font-weight: 600; font-size: 14px; }
+.ai-p-meta { font-size: 12px; color: var(--muted); margin-top: 2px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.ai-p-btns { display: flex; gap: 6px; flex-shrink: 0; }
+.ai-form-btns { display: flex; gap: 8px; margin-top: 6px; }
+.ai-form-btns .btn { flex: 1; }
+
+/* 模型切换栏 */
+.ai-model-bar { display: flex; align-items: center; gap: 8px; margin-bottom: 10px; }
+.ai-model-bar select { width: auto; flex: 1; min-width: 0; }

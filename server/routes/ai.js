@@ -5,78 +5,137 @@ import { homedir } from 'node:os';
 import { db } from '../db.js';
 import { requireAuth } from '../auth.js';
 import {
-  PROVIDER_PRESETS, maskKey, mergeConfig, ensureConfigDir,
-  configPath, loadGlobalConfig, configTemplate,
+  PROVIDER_PRESETS, maskKey, ensureConfigDir, getProviders,
+  configPath, configTemplate, loadFileProviders,
 } from '../ai-config.js';
 
 const router = Router();
 router.use(requireAuth);
 
-// 确保用户目录与配置模板存在（仅首次）
 ensureConfigDir();
 
-// AI 配置表（每个用户一份，存自己的供应商与 Key）
+// AI 供应商表（每用户可添加多个供应商，每个含多个模型）
 db.exec(`
-CREATE TABLE IF NOT EXISTS ai_settings (
-  user_id INTEGER PRIMARY KEY REFERENCES users(id) ON DELETE CASCADE,
+CREATE TABLE IF NOT EXISTS ai_providers (
+  id INTEGER PRIMARY KEY AUTOINCREMENT,
+  user_id INTEGER NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+  name TEXT NOT NULL DEFAULT '',
   provider TEXT NOT NULL DEFAULT 'deepseek',
-  base_url TEXT NOT NULL DEFAULT 'https://api.deepseek.com',
+  base_url TEXT NOT NULL DEFAULT '',
   api_key TEXT NOT NULL DEFAULT '',
-  model TEXT NOT NULL DEFAULT 'deepseek-chat',
-  enabled INTEGER NOT NULL DEFAULT 0,
-  updated_at TEXT NOT NULL DEFAULT (datetime('now','localtime'))
+  models TEXT NOT NULL DEFAULT '[]',
+  enabled INTEGER NOT NULL DEFAULT 1,
+  created_at TEXT NOT NULL DEFAULT (datetime('now','localtime'))
 );
 `);
 
-// 加载某用户的"有效配置"：默认 < 全局文件 < 数据库(用户) < 环境变量
-function getEffectiveSettings(userId) {
-  const base = mergeConfig(); // 默认 + 全局文件 + 环境变量
-  const s = db.prepare('SELECT * FROM ai_settings WHERE user_id = ?').get(userId);
-  const cfg = {
-    provider: base.provider,
-    base_url: base.base_url,
-    model: base.model,
-    api_key: base.api_key,
-    enabled: base.enabled,
-    source: 'file',
-  };
-  if (s && s.api_key) {
-    // 用户已在界面保存过配置 → 数据库覆盖文件
-    cfg.provider = s.provider;
-    cfg.base_url = s.base_url;
-    cfg.model = s.model;
-    cfg.api_key = s.api_key;
-    cfg.enabled = !!s.enabled;
-    cfg.source = 'user';
-  }
-  return cfg;
+function dbProvidersOf(userId) {
+  return db.prepare('SELECT * FROM ai_providers WHERE user_id = ? ORDER BY id').all(userId);
 }
 
-// 读取当前用户 AI 配置（Key 打码；返回配置来源：file=配置文件 / user=个人中心 / default=内置默认）
-router.get('/settings', (req, res) => {
+// 供应商列表（含来源：user=个人中心 / file=配置文件 / env=环境变量）
+router.get('/providers', (req, res) => {
   let fileError = null;
-  try { loadGlobalConfig(); } catch (err) { fileError = err.message; }
-
-  const s = db.prepare('SELECT * FROM ai_settings WHERE user_id = ?').get(req.user.id);
-  const base = mergeConfig();
-  const hasUser = !!(s && s.api_key);
-  const cfg = hasUser ? s : base;
-
-  const source = hasUser ? 'user' : (loadGlobalConfig() ? 'file' : 'default');
+  let list;
+  try {
+    list = getProviders(dbProvidersOf(req.user.id));
+  } catch (err) {
+    fileError = err.message;
+    list = getProviders(dbProvidersOf(req.user.id).filter(() => true)).filter((p) => p.source === 'user');
+    // 文件出错时退回只列用户自己的
+    try { list = getProviders(dbProvidersOf(req.user.id)); } catch (e2) {
+      list = dbProvidersOf(req.user.id).map(function (r) {
+        let models = []; try { models = JSON.parse(r.models || '[]'); } catch (e) {}
+        return { id: 'db:' + r.id, source: 'user', name: r.name, provider: r.provider, base_url: r.base_url, api_key: r.api_key, models: models, enabled: !!r.enabled };
+      });
+    }
+  }
   res.json({
-    provider: cfg.provider,
-    base_url: cfg.base_url,
-    model: cfg.model,
-    enabled: hasUser ? !!s.enabled : !!base.enabled,
-    api_key_set: !!cfg.api_key,
-    api_key_masked: maskKey(cfg.api_key),
-    source: source,
+    providers: list.map(function (p) {
+      return {
+        id: p.id,
+        source: p.source,
+        name: p.name,
+        provider: p.provider,
+        base_url: p.base_url,
+        models: p.models || [],
+        enabled: p.enabled,
+        api_key_set: !!p.api_key,
+        api_key_masked: maskKey(p.api_key),
+      };
+    }),
     config_file: configPath(),
     file_error: fileError,
   });
 });
 
-// 生成配置文件模板（写入用户目录；已有模板则提示路径）
+// 添加供应商（存数据库，仅当前用户可见）
+router.post('/providers', (req, res) => {
+  const b = req.body || {};
+  const provider = (b.provider || 'deepseek').toString().trim();
+  if (!PROVIDER_PRESETS[provider]) return res.status(400).json({ error: '不支持的供应商类型' });
+  const base_url = (b.base_url || '').toString().trim().replace(/\/$/, '') || PROVIDER_PRESETS[provider].base_url;
+  const models = Array.isArray(b.models)
+    ? b.models.map(String).map(function (s) { return s.trim(); }).filter(Boolean)
+    : (b.model ? [String(b.model).trim()] : []);
+  if (models.length === 0 && PROVIDER_PRESETS[provider].models.length) {
+    models.push(PROVIDER_PRESETS[provider].models[0]);
+  }
+  if (models.length === 0) return res.status(400).json({ error: '请填写至少一个模型名称' });
+  const api_key = (b.api_key || '').toString().trim();
+  if (!api_key) return res.status(400).json({ error: '请填写 API Key' });
+  const name = (b.name || '').toString().trim() || provider;
+
+  const info = db.prepare(`
+    INSERT INTO ai_providers (user_id, name, provider, base_url, api_key, models, enabled)
+    VALUES (?, ?, ?, ?, ?, ?, ?)
+  `).run(req.user.id, name, provider, base_url, api_key, JSON.stringify(models), b.enabled === false ? 0 : 1);
+
+  res.json({
+    id: 'db:' + info.lastInsertRowid, source: 'user', name: name, provider: provider,
+    base_url: base_url, models: models, enabled: b.enabled !== false,
+    api_key_set: true, api_key_masked: maskKey(api_key),
+  });
+});
+
+// 编辑供应商（Key 留空保留原值）
+router.put('/providers/:id', (req, res) => {
+  const id = Number(req.params.id);
+  const row = db.prepare('SELECT * FROM ai_providers WHERE id = ? AND user_id = ?').get(id, req.user.id);
+  if (!row) return res.status(404).json({ error: '供应商不存在' });
+  const b = req.body || {};
+  const provider = (b.provider || row.provider).toString().trim();
+  if (!PROVIDER_PRESETS[provider]) return res.status(400).json({ error: '不支持的供应商类型' });
+  const base_url = (b.base_url !== undefined ? (b.base_url || '').toString().trim() : row.base_url).replace(/\/$/, '') || PROVIDER_PRESETS[provider].base_url;
+  let models = row.models;
+  if (Array.isArray(b.models)) {
+    models = b.models.map(String).map(function (s) { return s.trim(); }).filter(Boolean);
+  }
+  if (models.length === 0) return res.status(400).json({ error: '请填写至少一个模型名称' });
+  const api_key = (b.api_key || '').toString().trim() || row.api_key;
+  const name = (b.name || '').toString().trim() || row.name;
+
+  db.prepare(`
+    UPDATE ai_providers SET name = ?, provider = ?, base_url = ?, api_key = ?, models = ?, enabled = ?
+    WHERE id = ? AND user_id = ?
+  `).run(name, provider, base_url, api_key, JSON.stringify(models), b.enabled === false ? 0 : 1, id, req.user.id);
+
+  res.json({
+    id: 'db:' + id, source: 'user', name: name, provider: provider,
+    base_url: base_url, models: models, enabled: b.enabled !== false,
+    api_key_set: true, api_key_masked: maskKey(api_key),
+  });
+});
+
+// 删除供应商
+router.delete('/providers/:id', (req, res) => {
+  const id = Number(req.params.id);
+  const info = db.prepare('DELETE FROM ai_providers WHERE id = ? AND user_id = ?').run(id, req.user.id);
+  if (info.changes === 0) return res.status(404).json({ error: '供应商不存在' });
+  res.json({ ok: true });
+});
+
+// 生成配置文件模板
 router.post('/settings/template', (req, res) => {
   const dir = pathMod.join(homedir(), '.jizhang');
   const example = pathMod.join(dir, 'ai-config.example.json');
@@ -91,52 +150,8 @@ router.post('/settings/template', (req, res) => {
   }
 });
 
-// 保存 AI 配置（Key 为空表示不修改，保留原值）
-router.put('/settings', (req, res) => {
-  const body = req.body || {};
-  const provider = (body.provider || 'deepseek').toString().trim();
-  if (!PROVIDER_PRESETS[provider]) return res.status(400).json({ error: '不支持的供应商' });
+// ============ 对话 ============
 
-  let base_url = (body.base_url || '').toString().trim().replace(/\/$/, '');
-  let model = (body.model || '').toString().trim();
-  let api_key = (body.api_key || '').toString().trim();
-
-  if (provider === 'deepseek' || provider === 'openai') {
-    // 预设供应商：不填 base_url/model 时用默认值
-    if (!base_url) base_url = PROVIDER_PRESETS[provider].base_url;
-    if (!model) model = PROVIDER_PRESETS[provider].model;
-  } else if (provider === 'custom') {
-    if (!base_url) return res.status(400).json({ error: '自定义接口请填写 Base URL' });
-    if (!model) return res.status(400).json({ error: '请填写模型名称' });
-  }
-
-  const existing = db.prepare('SELECT * FROM ai_settings WHERE user_id = ?').get(req.user.id);
-  if (existing && !api_key) {
-    // 保留原 Key
-    api_key = existing.api_key;
-  }
-  if (!api_key) return res.status(400).json({ error: '请填写 API Key' });
-
-  const enabled = body.enabled ? 1 : 0;
-  db.prepare(`
-    INSERT INTO ai_settings (user_id, provider, base_url, api_key, model, enabled, updated_at)
-    VALUES (?, ?, ?, ?, ?, ?, datetime('now','localtime'))
-    ON CONFLICT(user_id) DO UPDATE SET
-      provider = excluded.provider,
-      base_url = excluded.base_url,
-      api_key = excluded.api_key,
-      model = excluded.model,
-      enabled = excluded.enabled,
-      updated_at = excluded.updated_at
-  `).run(req.user.id, provider, base_url, api_key, model, enabled);
-
-  res.json({
-    provider, base_url, model, enabled: !!enabled,
-    api_key_set: true, api_key_masked: maskKey(api_key),
-  });
-});
-
-// 获取 AI 可用的账本上下文（分类 + 最近记录摘要，供对话工具使用）
 function buildContext(userId, ledgerId) {
   const cats = db.prepare('SELECT id, name, type FROM categories WHERE user_id = ? ORDER BY type, sort').all(userId);
   const records = db.prepare(`
@@ -153,7 +168,6 @@ function buildContext(userId, ledgerId) {
   };
 }
 
-// 执行记账工具
 function runTool(toolName, args) {
   const ledgerId = Number(args.ledger_id) || null;
   const userId = args.user_id;
@@ -161,7 +175,6 @@ function runTool(toolName, args) {
     const type = args.type === 'income' ? 'income' : 'expense';
     const amountCents = Math.round(Number(args.amount) * 100);
     if (!(amountCents > 0)) return { error: '金额无效' };
-    // 查找或创建分类
     let cat = null;
     if (args.category_name) {
       cat = db.prepare('SELECT id FROM categories WHERE user_id = ? AND name = ? AND type = ?')
@@ -199,15 +212,37 @@ function runTool(toolName, args) {
   return { error: '未知工具' };
 }
 
-// AI 对话
+// AI 对话：body = { message, ledger_id?, provider_id?, model? }
 router.post('/chat', async (req, res) => {
-  const s = getEffectiveSettings(req.user.id);
-  if (!s.api_key || !s.enabled) {
-    return res.status(400).json({ error: 'AI 未启用：请先在「个人中心 → AI 设置」填写 API Key 并开启，或在配置文件 ' + configPath() + ' 中配置' });
-  }
   const message = (req.body && req.body.message || '').toString().trim();
   if (!message) return res.status(400).json({ error: '请输入内容' });
   const ledgerId = Number(req.body.ledger_id) || req.user.currentLedgerId;
+
+  // 选出目标供应商
+  let providers;
+  try {
+    providers = getProviders(dbProvidersOf(req.user.id));
+  } catch (err) {
+    return res.status(400).json({ error: err.message });
+  }
+  const enabled = providers.filter(function (p) { return p.enabled; });
+  if (enabled.length === 0) {
+    return res.status(400).json({ error: '没有可用的 AI 供应商：请先在「个人中心 → AI 设置」添加供应商并填写 Key，或配置 ' + configPath() });
+  }
+  const reqProviderId = req.body.provider_id ? String(req.body.provider_id) : null;
+  let target = reqProviderId
+    ? enabled.find(function (p) { return String(p.id) === reqProviderId; })
+    : enabled[0];
+  if (!target) {
+    return res.status(400).json({ error: '指定的供应商不可用，请重新选择' });
+  }
+  // 选模型
+  const models = target.models && target.models.length ? target.models : [''];
+  let model = req.body.model ? String(req.body.model) : models[0];
+  if (models.indexOf(model) < 0 && models[0] !== '') {
+    // 允许任意模型名（用户可能填了自定义模型），但优先匹配列表
+    model = String(req.body.model) || models[0];
+  }
 
   const ctx = buildContext(req.user.id, ledgerId);
   const system = [
@@ -273,10 +308,10 @@ router.post('/chat', async (req, res) => {
     },
   ];
 
-  const url = (s.base_url || '').replace(/\/$/, '') + '/chat/completions';
+  const url = (target.base_url || '').replace(/\/$/, '') + '/chat/completions';
   try {
     const body = {
-      model: s.model,
+      model: model,
       messages: [
         { role: 'system', content: system },
         { role: 'user', content: message },
@@ -286,11 +321,8 @@ router.post('/chat', async (req, res) => {
       temperature: 0.3,
       stream: false,
     };
-    const resp = await fetch(url, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json', Authorization: 'Bearer ' + s.api_key },
-      body: JSON.stringify(body),
-    });
+    const headers = { 'Content-Type': 'application/json', Authorization: 'Bearer ' + target.api_key };
+    const resp = await fetch(url, { method: 'POST', headers: headers, body: JSON.stringify(body) });
     if (!resp.ok) {
       const txt = await resp.text().catch(function () { return ''; });
       return res.status(502).json({ error: 'AI 接口调用失败 (' + resp.status + '): ' + txt.slice(0, 300) });
@@ -309,12 +341,11 @@ router.post('/chat', async (req, res) => {
       const result = runTool(call.function.name, parsed);
       toolResults.push({ name: call.function.name, result: result });
 
-      // 把工具结果回传，让 AI 生成最终回答
       const second = await fetch(url, {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json', Authorization: 'Bearer ' + s.api_key },
+        headers: headers,
         body: JSON.stringify({
-          model: s.model,
+          model: model,
           messages: [
             { role: 'system', content: system },
             { role: 'user', content: message },
@@ -327,10 +358,10 @@ router.post('/chat', async (req, res) => {
       });
       const data2 = await second.json();
       const reply = data2.choices && data2.choices[0] && data2.choices[0].message;
-      return res.json({ reply: (reply && reply.content) || '已完成', tool_results: toolResults });
+      return res.json({ reply: (reply && reply.content) || '已完成', tool_results: toolResults, provider: target.name, model: model });
     }
 
-    res.json({ reply: (msg && msg.content) || '（无回复）', tool_results: [] });
+    res.json({ reply: (msg && msg.content) || '（无回复）', tool_results: [], provider: target.name, model: model });
   } catch (err) {
     console.error(err);
     res.status(500).json({ error: 'AI 调用失败: ' + err.message });

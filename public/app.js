@@ -146,67 +146,149 @@
     $('#profile-new-password').value = '';
     $('#profile-confirm-password').value = '';
     $('#profile-modal').classList.remove('hidden');
-    loadAiSettings().then(fillAiSettingsForm);
+    loadAiSettings();
   }
 
   function closeProfile() {
     $('#profile-modal').classList.add('hidden');
   }
 
-  // ================= AI 设置 =================
-  var aiSettings = null;
+  // ================= AI 设置（多供应商） =================
+  var aiProviders = [];
+  var aiEditingId = null;
 
   function loadAiSettings() {
-    return api('/ai/settings').then(function (data) {
-      aiSettings = data;
+    return api('/ai/providers').then(function (data) {
+      aiProviders = data.providers || [];
+      renderAiProviderList();
+      renderAiModelSelect();
       return data;
     }).catch(function () { return null; });
   }
 
-  function fillAiSettingsForm(s) {
-    if (!s) return;
-    $('#ai-provider').value = s.provider || 'deepseek';
-    $('#ai-base-url').value = s.base_url || '';
-    $('#ai-model').value = s.model || '';
-    $('#ai-enabled').checked = !!s.enabled;
-    $('#ai-api-key').value = '';
-    var srcText = s.source === 'user' ? '来源：个人中心设置'
-      : s.source === 'file' ? '来源：配置文件（' + (s.config_file || '') + '）'
-      : '来源：内置默认';
-    $('#ai-key-hint').textContent = (s.api_key_set ? ('已设置 Key：' + s.api_key_masked + '（留空则保持不变）') : '尚未设置 Key') + ' · ' + srcText;
-    if (s.file_error) {
-      $('#ai-key-hint').textContent += ' ⚠️ ' + s.file_error;
+  function renderAiProviderList() {
+    var box = $('#ai-provider-list');
+    if (!box) return;
+    if (!aiProviders.length) {
+      box.innerHTML = '<div class="empty">还没有供应商，点「添加供应商」配置你的 API Key</div>';
+      $('#ai-key-hint').textContent = '支持 DeepSeek / OpenAI / 自定义接口，每个供应商可配多个模型';
+      return;
     }
-    syncAiProviderPreset();
+    var html = [];
+    aiProviders.forEach(function (p) {
+      var src = p.source === 'user' ? '我的' : p.source === 'file' ? '配置' : '环境';
+      html.push(
+        '<div class="ai-provider-item">' +
+        '<div class="ai-p-main">' +
+        '<div class="ai-p-name">' + esc(p.name) + ' <span class="muted">(' + src + ')</span>' + (p.enabled ? '' : ' <span class="muted">已停用</span>') + '</div>' +
+        '<div class="ai-p-meta">' + esc(p.provider) + (p.base_url ? ' · ' + esc(p.base_url) : '') + '</div>' +
+        '<div class="ai-p-meta">模型: ' + (p.models || []).map(esc).join('、') + '</div>' +
+        '<div class="ai-p-meta">' + (p.api_key_set ? 'Key: ' + esc(p.api_key_masked) : '未填 Key') + '</div>' +
+        '</div>' +
+        (p.source === 'user'
+          ? '<div class="ai-p-btns">' +
+            '<button type="button" class="btn ghost sm" data-ai-edit="' + p.id + '">编辑</button>' +
+            '<button type="button" class="btn danger sm" data-ai-del="' + p.id + '">删除</button>' +
+            '</div>'
+          : '<div class="ai-p-btns"><span class="muted sm">只读</span></div>') +
+        '</div>'
+      );
+    });
+    box.innerHTML = html.join('');
+    box.querySelectorAll('[data-ai-edit]').forEach(function (b) {
+      b.onclick = function () { openAiProviderForm(b.dataset.aiEdit); };
+    });
+    box.querySelectorAll('[data-ai-del]').forEach(function (b) {
+      b.onclick = function () {
+        if (!confirm('确定删除该供应商吗？')) return;
+        var id = b.dataset.aiDel.replace('db:', '');
+        api('/ai/providers/' + id, { method: 'DELETE' }).then(function () {
+          toast('已删除');
+          loadAiSettings();
+        }).catch(function (e) { toast(e.message); });
+      };
+    });
   }
 
-  function syncAiProviderPreset() {
-    var p = $('#ai-provider').value;
-    if (p === 'deepseek') {
-      if (!$('#ai-base-url').value) $('#ai-base-url').value = 'https://api.deepseek.com';
-      if (!$('#ai-model').value) $('#ai-model').value = 'deepseek-chat';
-    } else if (p === 'openai') {
-      if (!$('#ai-base-url').value) $('#ai-base-url').value = 'https://api.openai.com/v1';
-      if (!$('#ai-model').value) $('#ai-model').value = 'gpt-4o-mini';
+  function openAiProviderForm(id) {
+    aiEditingId = id || null;
+    $('#ai-provider-form').classList.remove('hidden');
+    $('#ai-name').value = '';
+    $('#ai-provider').value = 'deepseek';
+    $('#ai-base-url').value = '';
+    $('#ai-models').value = '';
+    $('#ai-api-key').value = '';
+    $('#ai-enabled').checked = true;
+    if (id) {
+      var p = null;
+      aiProviders.forEach(function (x) { if (x.id === id) p = x; });
+      if (p) {
+        $('#ai-name').value = p.name || '';
+        $('#ai-provider').value = p.provider || 'deepseek';
+        $('#ai-base-url').value = p.base_url || '';
+        $('#ai-models').value = (p.models || []).join(', ');
+        $('#ai-enabled').checked = !!p.enabled;
+        $('#ai-api-key').placeholder = p.api_key_set ? ('留空=不修改（当前 ' + p.api_key_masked + '）') : '请输入 API Key';
+      }
+    } else {
+      $('#ai-api-key').placeholder = 'API Key（编辑时留空=不修改）';
     }
   }
 
   function saveAiSettings() {
+    var id = aiEditingId;
     var body = {
+      name: $('#ai-name').value.trim(),
       provider: $('#ai-provider').value,
       base_url: $('#ai-base-url').value.trim(),
-      model: $('#ai-model').value.trim(),
+      models: $('#ai-models').value.split(',').map(function (s) { return s.trim(); }).filter(Boolean),
       api_key: $('#ai-api-key').value.trim(),
       enabled: $('#ai-enabled').checked,
     };
-    api('/ai/settings', { method: 'PUT', body: body })
-      .then(function (data) {
-        aiSettings = data;
-        $('#ai-api-key').value = '';
-        $('#ai-key-hint').textContent = '已保存' + (data.api_key_masked ? '（Key：' + data.api_key_masked + '）' : '');
-        toast('AI 设置已保存');
-      })
-      .catch(function (e) { toast(e.message); });
+    var req = id
+      ? api('/ai/providers/' + id.replace('db:', ''), { method: 'PUT', body: body })
+      : api('/ai/providers', { method: 'POST', body: body });
+    req.then(function () {
+      toast('已保存');
+      aiEditingId = null;
+      $('#ai-provider-form').classList.add('hidden');
+      loadAiSettings();
+    }).catch(function (e) { toast(e.message); });
+  }
+
+  function renderAiModelSelect() {
+    var sel = $('#ai-model-select');
+    if (!sel) return;
+    var prev = sel.value;
+    sel.innerHTML = '';
+    var opts = [];
+    aiProviders.forEach(function (p) {
+      if (!p.enabled) return;
+      (p.models || []).forEach(function (m) {
+        opts.push({ value: p.id + '::' + m, label: p.name + ' · ' + m });
+      });
+    });
+    if (!opts.length) {
+      var opt = document.createElement('option');
+      opt.value = '';
+      opt.textContent = '（未配置模型）';
+      sel.appendChild(opt);
+      return;
+    }
+    opts.forEach(function (o) {
+      var opt = document.createElement('option');
+      opt.value = o.value;
+      opt.textContent = o.label;
+      sel.appendChild(opt);
+    });
+    if (prev && opts.some(function (o) { return o.value === prev; })) sel.value = prev;
+    var tip = document.querySelector('.ai-chat-tips');
+    if (tip) {
+      var anyKey = aiProviders.some(function (p) { return p.enabled && p.api_key_set; });
+      tip.textContent = anyKey
+        ? '模型可随时切换；直接说「今天午饭 25 块」即可 AI 记账'
+        : '提示：先去「个人中心 → AI 设置」添加供应商并填写 Key';
+    }
   }
 
   // ================= AI 聊天 =================
@@ -230,9 +312,16 @@
     appendAiMsg('user', text);
     appendAiMsg('bot', '思考中…');
 
+    var sel = $('#ai-model-select');
+    var mv = sel ? sel.value : '';
+    var providerId = null, model = null;
+    if (mv && mv.indexOf('::') > 0) {
+      providerId = mv.split('::')[0];
+      model = mv.split('::')[1];
+    }
     var last = $('#ai-chat-list .ai-msg:last-child .ai-bubble');
     var pending = last;
-    api('/ai/chat', { method: 'POST', body: { message: text, ledger_id: state.currentLedgerId } })
+    api('/ai/chat', { method: 'POST', body: { message: text, ledger_id: state.currentLedgerId, provider_id: providerId, model: model } })
       .then(function (data) {
         pending.textContent = '';
         pending.innerHTML = esc(data.reply || '完成').replace(/\n/g, '<br>');
@@ -886,14 +975,7 @@
       renderLedgers();
       renderCategories();
     } else if (name === 'ai') {
-      loadAiSettings().then(function (s) {
-        var tip = document.querySelector('.ai-chat-tips');
-        if (tip) {
-          tip.textContent = s && s.enabled
-            ? (s.api_key_set ? 'AI 已开启（' + s.api_key_masked + '）' : '请先在个人中心填写 API Key')
-            : '提示：先去「个人中心 → AI 设置」填写 API Key 并开启';
-        }
-      });
+      loadAiSettings();
       if (!$('#ai-chat-input').value) $('#ai-chat-input').focus();
     }
   }
@@ -937,10 +1019,18 @@
     $('#profile-confirm-password').onkeydown = function (e) { if (e.key === 'Enter') changePassword(); };
     document.addEventListener('keydown', function (e) { if (e.key === 'Escape') closeProfile(); });
 
-    // AI 设置
-    $('#ai-provider').onchange = syncAiProviderPreset;
+    // AI 供应商管理
+    $('#ai-add-provider').onclick = function () { openAiProviderForm(null); };
     $('#ai-save-settings').onclick = saveAiSettings;
-    $('#ai-api-key').onkeydown = function (e) { if (e.key === 'Enter') saveAiSettings(); };
+    $('#ai-cancel-edit').onclick = function () {
+      aiEditingId = null;
+      $('#ai-provider-form').classList.add('hidden');
+    };
+    $('#ai-provider').onchange = function () {
+      var p = $('#ai-provider').value;
+      if (p === 'deepseek' && !$('#ai-base-url').value) $('#ai-base-url').value = 'https://api.deepseek.com';
+      if (p === 'openai' && !$('#ai-base-url').value) $('#ai-base-url').value = 'https://api.openai.com/v1';
+    };
 
     // AI 聊天
     $('#ai-send').onclick = sendAiMessage;

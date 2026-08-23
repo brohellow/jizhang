@@ -78,21 +78,31 @@
         <button type="button" id="profile-save-password" class="btn ghost block">修改密码</button>
 
         <hr class="profile-divider">
-        <h3 class="profile-section-title">🤖 AI 设置</h3>
-        <select id="ai-provider">
-          <option value="deepseek">DeepSeek</option>
-          <option value="openai">OpenAI</option>
-          <option value="custom">自定义（OpenAI 兼容）</option>
-        </select>
-        <input type="text" id="ai-base-url" placeholder="接口地址（选预设会自动填）">
-        <input type="text" id="ai-model" placeholder="模型名称">
-        <input type="password" id="ai-api-key" placeholder="API Key（留空表示不修改）" autocomplete="off">
-        <label class="ai-toggle-row">
-          <input type="checkbox" id="ai-enabled">
-          <span>启用 AI 助手</span>
-        </label>
+        <h3 class="profile-section-title">🤖 AI 供应商</h3>
+        <div id="ai-provider-list"></div>
+        <button type="button" id="ai-add-provider" class="btn ghost block">＋ 添加供应商</button>
         <div class="hint muted" id="ai-key-hint"></div>
-        <button type="button" id="ai-save-settings" class="btn primary block">保存 AI 设置</button>
+
+        <!-- 供应商编辑表单（隐藏） -->
+        <div id="ai-provider-form" class="hidden" style="margin-top:12px">
+          <input type="text" id="ai-name" placeholder="名称（如：我的 DeepSeek）">
+          <select id="ai-provider">
+            <option value="deepseek">DeepSeek</option>
+            <option value="openai">OpenAI</option>
+            <option value="custom">自定义（OpenAI 兼容）</option>
+          </select>
+          <input type="text" id="ai-base-url" placeholder="接口地址（选预设可留空）">
+          <input type="text" id="ai-models" placeholder="模型列表，逗号分隔（如 deepseek-chat, deepseek-reasoner）">
+          <input type="password" id="ai-api-key" placeholder="API Key（编辑时留空=不修改）" autocomplete="off">
+          <label class="ai-toggle-row">
+            <input type="checkbox" id="ai-enabled" checked>
+            <span>启用</span>
+          </label>
+          <div class="ai-form-btns">
+            <button type="button" id="ai-save-settings" class="btn primary">保存</button>
+            <button type="button" id="ai-cancel-edit" class="btn ghost">取消</button>
+          </div>
+        </div>
       </div>
     </div>
   </div>
@@ -235,11 +245,15 @@
             <div class="ai-bubble">你好！我是 AI 记账助手 🤖<br>可以直接说「今天午饭花了 25 块」帮你记账，也可以问我「这个月花了多少」「分析一下消费习惯」。</div>
           </div>
         </div>
+        <div class="ai-model-bar">
+          <span class="muted">模型</span>
+          <select id="ai-model-select" title="切换模型"></select>
+        </div>
         <div class="ai-chat-input">
           <input type="text" id="ai-chat-input" placeholder="说点什么…（如：昨天打车花了 18 元）" autocomplete="off">
           <button type="button" id="ai-send" class="btn primary">发送</button>
         </div>
-        <div class="ai-chat-tips muted">提示：先去「个人中心 → AI 设置」填写 API Key 并开启</div>
+        <div class="ai-chat-tips muted">提示：先去「个人中心 → AI 设置」添加供应商并填写 Key</div>
       </div>
     </section>
   </main>
