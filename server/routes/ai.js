@@ -184,9 +184,10 @@ function stripTags(html) {
 async function webSearch(query) {
   if (!query || !String(query).trim()) return { error: '搜索词为空' };
   const q = encodeURIComponent(String(query).trim());
-  const url = 'https://www.bing.com/search?q=' + q + '&setlang=zh-cn';
+  const url = 'https://cn.bing.com/search?q=' + q + '&setlang=zh-cn';
   try {
     const resp = await fetch(url, {
+      redirect: 'follow',
       headers: {
         'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0 Safari/537.36',
         'Accept-Language': 'zh-CN,zh;q=0.9',
