@@ -275,3 +275,65 @@ main { max-width: 1100px; margin: 0 auto; padding: 20px; }
   .record-item .r-date { display: none; }
   .category-grid { grid-template-columns: repeat(4, 1fr); }
 }
+
+/* ===== 手机端适配（2026-08） ===== */
+@media (max-width: 640px) {
+  body { font-size: 15px; }
+  input, select { font-size: 16px; } /* 防止 iOS 聚焦自动放大 */
+
+  /* 顶栏：紧凑，隐藏昵称 */
+  header { padding: 8px 12px; gap: 8px; }
+  .brand { font-size: 16px; }
+  .ledger-switch select { min-width: 96px; padding: 5px 8px; font-size: 13px; }
+  #user-nickname { display: none; }
+
+  /* 标签栏：四个标签等宽铺满 */
+  .tabs { padding: 8px 6px 0; top: 47px; }
+  .tabs button { flex: 1; padding: 9px 2px; font-size: 14px; white-space: nowrap; }
+
+  /* 主区域边距收紧 */
+  main { padding: 12px; }
+  .card { padding: 14px; margin-bottom: 12px; border-radius: 10px; }
+  .card h2 { font-size: 15px; margin-bottom: 10px; }
+
+  /* 筛选栏：两列网格，导出按钮独占一行 */
+  .filter-bar { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; align-items: center; }
+  .filter-bar input, .filter-bar select { width: 100%; min-width: 0; }
+  .filter-bar .btn { width: 100%; }
+  .filter-bar #btn-export { grid-column: 1 / -1; }
+
+  /* 分类选择：3 列大按钮，好点 */
+  .category-grid { grid-template-columns: repeat(3, 1fr); max-height: 264px; }
+  .category-grid button { padding: 10px 4px; font-size: 13px; }
+  .category-grid button .ic { font-size: 24px; }
+  .type-toggle button { padding: 10px; font-size: 16px; }
+
+  /* 明细行：更紧凑，金额加大 */
+  .record-item { padding: 10px 2px; gap: 8px; }
+  .record-item .r-icon { font-size: 22px; width: 30px; }
+  .record-item .r-amount { width: auto; min-width: 72px; font-size: 15px; }
+  .record-item .r-actions .btn { padding: 4px 8px; }
+
+  /* 统计页：两列卡片，图表矮一点 */
+  .stat-cards { grid-template-columns: repeat(2, 1fr); gap: 8px; }
+  .stat { padding: 12px 8px; }
+  .stat .value { font-size: 18px; }
+  .chart { height: 220px; }
+
+  /* 表单单列（预算/分类/账本） */
+  .inline-form { flex-direction: column; }
+  .inline-form input, .inline-form select, .inline-form .btn { width: 100%; min-width: 0; }
+  .cat-cols { grid-template-columns: 1fr; }
+
+  /* 分页按钮触控友好 */
+  .pager .btn { padding: 6px 14px; }
+
+  /* Toast 更小 */
+  .toast { top: 60px; font-size: 13px; padding: 8px 14px; }
+}
+
+/* 平板微调（641-860px） */
+@media (min-width: 641px) and (max-width: 860px) {
+  .filter-bar input, .filter-bar select { min-width: 110px; }
+  .stat-cards { grid-template-columns: repeat(3, 1fr); }
+}
