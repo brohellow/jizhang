@@ -146,10 +146,102 @@
     $('#profile-new-password').value = '';
     $('#profile-confirm-password').value = '';
     $('#profile-modal').classList.remove('hidden');
+    loadAiSettings().then(fillAiSettingsForm);
   }
 
   function closeProfile() {
     $('#profile-modal').classList.add('hidden');
+  }
+
+  // ================= AI 设置 =================
+  var aiSettings = null;
+
+  function loadAiSettings() {
+    return api('/ai/settings').then(function (data) {
+      aiSettings = data;
+      return data;
+    }).catch(function () { return null; });
+  }
+
+  function fillAiSettingsForm(s) {
+    if (!s) return;
+    $('#ai-provider').value = s.provider || 'deepseek';
+    $('#ai-base-url').value = s.base_url || '';
+    $('#ai-model').value = s.model || '';
+    $('#ai-enabled').checked = !!s.enabled;
+    $('#ai-api-key').value = '';
+    $('#ai-key-hint').textContent = s.api_key_set ? ('已设置 Key：' + s.api_key_masked + '（留空则保持不变）') : '尚未设置 Key';
+    syncAiProviderPreset();
+  }
+
+  function syncAiProviderPreset() {
+    var p = $('#ai-provider').value;
+    if (p === 'deepseek') {
+      if (!$('#ai-base-url').value) $('#ai-base-url').value = 'https://api.deepseek.com';
+      if (!$('#ai-model').value) $('#ai-model').value = 'deepseek-chat';
+    } else if (p === 'openai') {
+      if (!$('#ai-base-url').value) $('#ai-base-url').value = 'https://api.openai.com/v1';
+      if (!$('#ai-model').value) $('#ai-model').value = 'gpt-4o-mini';
+    }
+  }
+
+  function saveAiSettings() {
+    var body = {
+      provider: $('#ai-provider').value,
+      base_url: $('#ai-base-url').value.trim(),
+      model: $('#ai-model').value.trim(),
+      api_key: $('#ai-api-key').value.trim(),
+      enabled: $('#ai-enabled').checked,
+    };
+    api('/ai/settings', { method: 'PUT', body: body })
+      .then(function (data) {
+        aiSettings = data;
+        $('#ai-api-key').value = '';
+        $('#ai-key-hint').textContent = '已保存' + (data.api_key_masked ? '（Key：' + data.api_key_masked + '）' : '');
+        toast('AI 设置已保存');
+      })
+      .catch(function (e) { toast(e.message); });
+  }
+
+  // ================= AI 聊天 =================
+  function appendAiMsg(role, text) {
+    var list = $('#ai-chat-list');
+    var div = document.createElement('div');
+    div.className = 'ai-msg ' + (role === 'user' ? 'ai-user' : 'ai-bot');
+    var bubble = document.createElement('div');
+    bubble.className = 'ai-bubble';
+    bubble.innerHTML = esc(text).replace(/\n/g, '<br>');
+    div.appendChild(bubble);
+    list.appendChild(div);
+    list.scrollTop = list.scrollHeight;
+  }
+
+  function sendAiMessage() {
+    var input = $('#ai-chat-input');
+    var text = input.value.trim();
+    if (!text) return;
+    input.value = '';
+    appendAiMsg('user', text);
+    appendAiMsg('bot', '思考中…');
+
+    var last = $('#ai-chat-list .ai-msg:last-child .ai-bubble');
+    var pending = last;
+    api('/ai/chat', { method: 'POST', body: { message: text, ledger_id: state.currentLedgerId } })
+      .then(function (data) {
+        pending.textContent = '';
+        pending.innerHTML = esc(data.reply || '完成').replace(/\n/g, '<br>');
+        if (data.tool_results && data.tool_results.length) {
+          var acted = data.tool_results.filter(function (t) { return t.name === 'add_record'; });
+          if (acted.length) { loadRecords(); if (state.user) refreshAll(); }
+        }
+      })
+      .catch(function (e) {
+        pending.textContent = '';
+        pending.innerHTML = esc(e.message);
+        if (String(e.message).indexOf('请先在') >= 0) {
+          // 提示去设置
+        }
+      });
   }
 
   function saveNickname() {
@@ -787,6 +879,16 @@
     } else if (name === 'ledger') {
       renderLedgers();
       renderCategories();
+    } else if (name === 'ai') {
+      loadAiSettings().then(function (s) {
+        var tip = document.querySelector('.ai-chat-tips');
+        if (tip) {
+          tip.textContent = s && s.enabled
+            ? (s.api_key_set ? 'AI 已开启（' + s.api_key_masked + '）' : '请先在个人中心填写 API Key')
+            : '提示：先去「个人中心 → AI 设置」填写 API Key 并开启';
+        }
+      });
+      if (!$('#ai-chat-input').value) $('#ai-chat-input').focus();
     }
   }
 
@@ -828,6 +930,17 @@
     $('#profile-nickname').onkeydown = function (e) { if (e.key === 'Enter') saveNickname(); };
     $('#profile-confirm-password').onkeydown = function (e) { if (e.key === 'Enter') changePassword(); };
     document.addEventListener('keydown', function (e) { if (e.key === 'Escape') closeProfile(); });
+
+    // AI 设置
+    $('#ai-provider').onchange = syncAiProviderPreset;
+    $('#ai-save-settings').onclick = saveAiSettings;
+    $('#ai-api-key').onkeydown = function (e) { if (e.key === 'Enter') saveAiSettings(); };
+
+    // AI 聊天
+    $('#ai-send').onclick = sendAiMessage;
+    $('#ai-chat-input').onkeydown = function (e) {
+      if (e.key === 'Enter') { e.preventDefault(); sendAiMessage(); }
+    };
 
     // 退出
     $('#btn-logout').onclick = function () {

@@ -76,6 +76,23 @@
         <input type="password" id="profile-new-password" placeholder="新密码（至少 6 位）" autocomplete="new-password">
         <input type="password" id="profile-confirm-password" placeholder="确认新密码" autocomplete="new-password">
         <button type="button" id="profile-save-password" class="btn ghost block">修改密码</button>
+
+        <hr class="profile-divider">
+        <h3 class="profile-section-title">🤖 AI 设置</h3>
+        <select id="ai-provider">
+          <option value="deepseek">DeepSeek</option>
+          <option value="openai">OpenAI</option>
+          <option value="custom">自定义（OpenAI 兼容）</option>
+        </select>
+        <input type="text" id="ai-base-url" placeholder="接口地址（选预设会自动填）">
+        <input type="text" id="ai-model" placeholder="模型名称">
+        <input type="password" id="ai-api-key" placeholder="API Key（留空表示不修改）" autocomplete="off">
+        <label class="ai-toggle-row">
+          <input type="checkbox" id="ai-enabled">
+          <span>启用 AI 助手</span>
+        </label>
+        <div class="hint muted" id="ai-key-hint"></div>
+        <button type="button" id="ai-save-settings" class="btn primary block">保存 AI 设置</button>
       </div>
     </div>
   </div>
@@ -85,6 +102,7 @@
     <button type="button" data-tab="stats">统计</button>
     <button type="button" data-tab="budget">预算</button>
     <button type="button" data-tab="ledger">账本与分类</button>
+    <button type="button" data-tab="ai">AI 助手</button>
   </nav>
 
   <main>
@@ -206,6 +224,22 @@
             <button type="submit" class="btn primary">添加</button>
           </form>
         </div>
+      </div>
+    </section>
+
+    <!-- AI 助手页 -->
+    <section id="tab-ai" class="tab-pane">
+      <div class="card ai-card">
+        <div id="ai-chat-list" class="ai-chat-list">
+          <div class="ai-msg ai-bot">
+            <div class="ai-bubble">你好！我是 AI 记账助手 🤖<br>可以直接说「今天午饭花了 25 块」帮你记账，也可以问我「这个月花了多少」「分析一下消费习惯」。</div>
+          </div>
+        </div>
+        <div class="ai-chat-input">
+          <input type="text" id="ai-chat-input" placeholder="说点什么…（如：昨天打车花了 18 元）" autocomplete="off">
+          <button type="button" id="ai-send" class="btn primary">发送</button>
+        </div>
+        <div class="ai-chat-tips muted">提示：先去「个人中心 → AI 设置」填写 API Key 并开启</div>
       </div>
     </section>
   </main>
