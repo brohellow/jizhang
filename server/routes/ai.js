@@ -162,11 +162,57 @@ function buildContext(userId, ledgerId) {
   `).all(ledgerId);
   return {
     today: todayStr(),
+    now: new Date().toLocaleString('zh-CN', { timeZone: 'Asia/Shanghai', hour12: false }),
     categories: cats.map(function (c) { return c.type + ':' + c.name; }),
     recent_records: records.map(function (r) {
       return (r.record_date || '') + ' ' + (r.type === 'expense' ? '支出' : '收入') + ' ' + (r.amount / 100).toFixed(2) + '元 ' + (r.category_name || '未分类') + (r.note ? ' (' + r.note + ')' : '');
     }),
   };
+}
+
+// ===== 联网搜索（Bing，国内可访问，无需 API Key） =====
+function stripTags(html) {
+  return String(html || '')
+    .replace(/<script[\s\S]*?<\/script>/gi, ' ')
+    .replace(/<style[\s\S]*?<\/style>/gi, ' ')
+    .replace(/<[^>]+>/g, ' ')
+    .replace(/&amp;/g, '&').replace(/&lt;/g, '<').replace(/&gt;/g, '>')
+    .replace(/&quot;/g, '"').replace(/&#39;/g, "'")
+    .replace(/\s+/g, ' ').trim();
+}
+
+async function webSearch(query) {
+  if (!query || !String(query).trim()) return { error: '搜索词为空' };
+  const q = encodeURIComponent(String(query).trim());
+  const url = 'https://www.bing.com/search?q=' + q + '&setlang=zh-cn';
+  try {
+    const resp = await fetch(url, {
+      headers: {
+        'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0 Safari/537.36',
+        'Accept-Language': 'zh-CN,zh;q=0.9',
+      },
+    });
+    if (!resp.ok) return { error: '搜索失败 (' + resp.status + ')' };
+    const html = await resp.text();
+    const results = [];
+    const liRe = /<li class="b_algo"[\s\S]*?<\/li>/gi;
+    const liMatches = html.match(liRe) || [];
+    liMatches.forEach(function (li) {
+      if (results.length >= 5) return;
+      const titleM = li.match(/<h2>[\s\S]*?<a[^>]*href="([^"]+)"[^>]*>([\s\S]*?)<\/a>/i);
+      if (!titleM) return;
+      const snippetM = li.match(/<p[^>]*>([\s\S]*?)<\/p>/i);
+      results.push({
+        title: stripTags(titleM[2]).slice(0, 120),
+        url: titleM[1].slice(0, 300),
+        snippet: snippetM ? stripTags(snippetM[1]).slice(0, 300) : '',
+      });
+    });
+    if (!results.length) return { note: '未找到相关结果' };
+    return { results: results };
+  } catch (err) {
+    return { error: '搜索出错: ' + err.message };
+  }
 }
 
 function runTool(toolName, args) {
@@ -271,6 +317,7 @@ router.post('/chat', async (req, res) => {
   const system = [
     '你是「记账本」的 AI 助手，帮助用户记账和查询分析。',
     '今天（本地日期，唯一正确）: ' + ctx.today,
+    '当前时间（北京时间）: ' + ctx.now,
     '你所在时区是中国标准时间（UTC+8）。你的训练数据中的日期一律无效。',
     '可用分类（类型:名称）: ' + ctx.categories.join('，'),
     '最近 50 条记录:',
@@ -333,6 +380,20 @@ router.post('/chat', async (req, res) => {
         },
       },
     },
+    {
+      type: 'function',
+      function: {
+        name: 'web_search',
+        description: '联网搜索实时信息（今日汇率、新闻、天气、节假日、价格行情等）。当用户询问需要最新/实时信息的问题时使用',
+        parameters: {
+          type: 'object',
+          properties: {
+            query: { type: 'string', description: '搜索关键词，中文或英文，具体明确' },
+          },
+          required: ['query'],
+        },
+      },
+    },
   ];
 
   const url = (target.base_url || '').replace(/\/$/, '') + '/chat/completions';
@@ -361,13 +422,25 @@ router.post('/chat', async (req, res) => {
 
     let toolResults = [];
     if (msg && msg.tool_calls && msg.tool_calls.length) {
-      const call = msg.tool_calls[0];
-      let parsed;
-      try { parsed = JSON.parse(call.function.arguments || '{}'); } catch (e) { parsed = {}; }
-      parsed.user_id = req.user.id;
-      parsed.ledger_id = ledgerId;
-      const result = runTool(call.function.name, parsed);
-      toolResults.push({ name: call.function.name, result: result });
+      // 逐个执行工具（web_search 是异步的）
+      const toolMessages = [];
+      for (const call of msg.tool_calls) {
+        let parsed;
+        try { parsed = JSON.parse(call.function.arguments || '{}'); } catch (e) { parsed = {}; }
+        parsed.user_id = req.user.id;
+        parsed.ledger_id = ledgerId;
+        let result;
+        if (call.function.name === 'web_search') {
+          result = await webSearch(parsed.query);
+        } else {
+          result = runTool(call.function.name, parsed);
+        }
+        toolResults.push({ name: call.function.name, result: result });
+        toolMessages.push(
+          { role: 'assistant', content: null, tool_calls: msg.tool_calls },
+          { role: 'tool', tool_call_id: call.id, content: JSON.stringify(result) }
+        );
+      }
 
       const second = await fetch(url, {
         method: 'POST',
@@ -378,9 +451,7 @@ router.post('/chat', async (req, res) => {
             { role: 'system', content: system },
           ].concat(historySlice, [
             { role: 'user', content: message },
-            { role: 'assistant', content: null, tool_calls: [call] },
-            { role: 'tool', tool_call_id: call.id, content: JSON.stringify(result) },
-          ]),
+          ], toolMessages),
           temperature: 0.3,
           stream: false,
         }),
