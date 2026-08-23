@@ -1,9 +1,19 @@
 import { Router } from 'express';
+import { mkdirSync, writeFileSync, existsSync } from 'node:fs';
+import pathMod from 'node:path';
+import { homedir } from 'node:os';
 import { db } from '../db.js';
 import { requireAuth } from '../auth.js';
+import {
+  PROVIDER_PRESETS, maskKey, mergeConfig, ensureConfigDir,
+  configPath, loadGlobalConfig, configTemplate,
+} from '../ai-config.js';
 
 const router = Router();
 router.use(requireAuth);
+
+// 确保用户目录与配置模板存在（仅首次）
+ensureConfigDir();
 
 // AI 配置表（每个用户一份，存自己的供应商与 Key）
 db.exec(`
@@ -18,35 +28,67 @@ CREATE TABLE IF NOT EXISTS ai_settings (
 );
 `);
 
-const PROVIDER_PRESETS = {
-  deepseek: { base_url: 'https://api.deepseek.com', model: 'deepseek-chat' },
-  openai: { base_url: 'https://api.openai.com/v1', model: 'gpt-4o-mini' },
-  custom: { base_url: '', model: '' },
-};
-
-function maskKey(key) {
-  if (!key) return '';
-  if (key.length <= 8) return '****';
-  return key.slice(0, 4) + '****' + key.slice(-4);
+// 加载某用户的"有效配置"：默认 < 全局文件 < 数据库(用户) < 环境变量
+function getEffectiveSettings(userId) {
+  const base = mergeConfig(); // 默认 + 全局文件 + 环境变量
+  const s = db.prepare('SELECT * FROM ai_settings WHERE user_id = ?').get(userId);
+  const cfg = {
+    provider: base.provider,
+    base_url: base.base_url,
+    model: base.model,
+    api_key: base.api_key,
+    enabled: base.enabled,
+    source: 'file',
+  };
+  if (s && s.api_key) {
+    // 用户已在界面保存过配置 → 数据库覆盖文件
+    cfg.provider = s.provider;
+    cfg.base_url = s.base_url;
+    cfg.model = s.model;
+    cfg.api_key = s.api_key;
+    cfg.enabled = !!s.enabled;
+    cfg.source = 'user';
+  }
+  return cfg;
 }
 
-// 读取当前用户 AI 配置（Key 打码返回）
+// 读取当前用户 AI 配置（Key 打码；返回配置来源：file=配置文件 / user=个人中心 / default=内置默认）
 router.get('/settings', (req, res) => {
+  let fileError = null;
+  try { loadGlobalConfig(); } catch (err) { fileError = err.message; }
+
   const s = db.prepare('SELECT * FROM ai_settings WHERE user_id = ?').get(req.user.id);
-  if (!s) {
-    return res.json({
-      provider: 'deepseek', base_url: 'https://api.deepseek.com', model: 'deepseek-chat',
-      enabled: false, api_key_set: false, api_key_masked: '',
-    });
-  }
+  const base = mergeConfig();
+  const hasUser = !!(s && s.api_key);
+  const cfg = hasUser ? s : base;
+
+  const source = hasUser ? 'user' : (loadGlobalConfig() ? 'file' : 'default');
   res.json({
-    provider: s.provider,
-    base_url: s.base_url,
-    model: s.model,
-    enabled: !!s.enabled,
-    api_key_set: !!s.api_key,
-    api_key_masked: maskKey(s.api_key),
+    provider: cfg.provider,
+    base_url: cfg.base_url,
+    model: cfg.model,
+    enabled: hasUser ? !!s.enabled : !!base.enabled,
+    api_key_set: !!cfg.api_key,
+    api_key_masked: maskKey(cfg.api_key),
+    source: source,
+    config_file: configPath(),
+    file_error: fileError,
   });
+});
+
+// 生成配置文件模板（写入用户目录；已有模板则提示路径）
+router.post('/settings/template', (req, res) => {
+  const dir = pathMod.join(homedir(), '.jizhang');
+  const example = pathMod.join(dir, 'ai-config.example.json');
+  const target = pathMod.join(dir, 'ai-config.json');
+  try {
+    mkdirSync(dir, { recursive: true });
+    if (!existsSync(example)) writeFileSync(example, JSON.stringify(configTemplate(), null, 2), 'utf-8');
+    if (!existsSync(target)) writeFileSync(target, JSON.stringify(configTemplate(), null, 2), 'utf-8');
+    res.json({ ok: true, example: example, target: target, message: '模板已生成：' + target });
+  } catch (err) {
+    res.status(500).json({ error: '无法生成模板: ' + err.message });
+  }
 });
 
 // 保存 AI 配置（Key 为空表示不修改，保留原值）
@@ -159,9 +201,9 @@ function runTool(toolName, args) {
 
 // AI 对话
 router.post('/chat', async (req, res) => {
-  const s = db.prepare('SELECT * FROM ai_settings WHERE user_id = ?').get(req.user.id);
-  if (!s || !s.api_key || !s.enabled) {
-    return res.status(400).json({ error: '请先在「个人中心 → AI 设置」中填写 API Key 并开启' });
+  const s = getEffectiveSettings(req.user.id);
+  if (!s.api_key || !s.enabled) {
+    return res.status(400).json({ error: 'AI 未启用：请先在「个人中心 → AI 设置」填写 API Key 并开启，或在配置文件 ' + configPath() + ' 中配置' });
   }
   const message = (req.body && req.body.message || '').toString().trim();
   if (!message) return res.status(400).json({ error: '请输入内容' });

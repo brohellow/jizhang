@@ -170,7 +170,13 @@
     $('#ai-model').value = s.model || '';
     $('#ai-enabled').checked = !!s.enabled;
     $('#ai-api-key').value = '';
-    $('#ai-key-hint').textContent = s.api_key_set ? ('已设置 Key：' + s.api_key_masked + '（留空则保持不变）') : '尚未设置 Key';
+    var srcText = s.source === 'user' ? '来源：个人中心设置'
+      : s.source === 'file' ? '来源：配置文件（' + (s.config_file || '') + '）'
+      : '来源：内置默认';
+    $('#ai-key-hint').textContent = (s.api_key_set ? ('已设置 Key：' + s.api_key_masked + '（留空则保持不变）') : '尚未设置 Key') + ' · ' + srcText;
+    if (s.file_error) {
+      $('#ai-key-hint').textContent += ' ⚠️ ' + s.file_error;
+    }
     syncAiProviderPreset();
   }
 
