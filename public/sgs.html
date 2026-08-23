@@ -5,7 +5,14 @@
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>三国杀 · 联机大厅</title>
 <style>
-:root { --primary:#4f7df9; --bg:#f6f8fc; --card:#fff; --border:#e6ebf2; --text:#1e2a3a; --muted:#8b96a8; }
+:root { --primary:#4f7df9; --bg:#f6f8fc; --card:#fff; --border:#e6ebf2; --text:#1e2a3a; --muted:#8b96a8; --hover:#f0f4fa; --hover-2:#eaf0f8; --soft:#f4f7fb; }
+:root[data-theme="dark"] {
+  --primary:#6d9bff; --bg:#14171f; --card:#1e2330; --border:#333c4e; --text:#e6eaf2; --muted:#8b96ab;
+  --hover:#262d3d; --hover-2:#2a3345; --soft:#232a3a;
+}
+.theme-btn { border:none; background:transparent; font-size:18px; cursor:pointer; padding:6px 10px; border-radius:8px; }
+.theme-btn:hover { background:var(--hover); }
+header .user { margin-left:auto; }
 * { box-sizing:border-box; margin:0; padding:0; }
 body { font-family:-apple-system,BlinkMacSystemFont,"Segoe UI","PingFang SC","Microsoft YaHei",sans-serif; background:var(--bg); color:var(--text); min-height:100vh; }
 header { background:var(--card); border-bottom:1px solid var(--border); padding:16px 24px; display:flex; align-items:center; gap:16px; }
@@ -21,15 +28,15 @@ main { max-width:900px; margin:24px auto; padding:0 16px; }
 .rooms { width:100%; border-collapse:collapse; }
 .rooms th, .rooms td { padding:12px 14px; text-align:left; border-bottom:1px solid var(--border); font-size:14px; }
 .rooms th { color:var(--muted); font-weight:500; font-size:13px; }
-.rooms tr:hover td { background:#f8fafc; }
+.rooms tr:hover td { background:var(--hover); }
 .status { padding:3px 10px; border-radius:99px; font-size:12px; }
-.status.waiting { background:#e8effe; color:#4f7df9; }
+.status.waiting { background:var(--primary-soft,#e8effe); color:var(--primary); }
 .status.playing { background:#e8f8ef; color:#16a34a; }
 .empty { text-align:center; color:var(--muted); padding:30px 0; }
 .modal-mask { position:fixed; inset:0; background:rgba(0,0,0,.4); display:flex; align-items:center; justify-content:center; z-index:100; }
-.modal { background:#fff; border-radius:16px; padding:28px; max-width:480px; width:90%; }
+.modal { background:var(--card); border-radius:16px; padding:28px; max-width:480px; width:90%; }
 .modal h3 { margin-bottom:16px; }
-.conn-box { background:#f4f7fb; border:1px solid var(--border); border-radius:10px; padding:14px; font-family:monospace; font-size:14px; word-break:break-all; margin:12px 0; }
+.conn-box { background:var(--soft); border:1px solid var(--border); border-radius:10px; padding:14px; font-family:monospace; font-size:14px; word-break:break-all; margin:12px 0; }
 .muted { color:var(--muted); font-size:13px; }
 .mode-select { padding:8px 12px; border:1px solid var(--border); border-radius:10px; font-size:14px; margin-right:10px; }
 .tip { background:#fff7ed; border:1px solid #fed7aa; color:#9a3412; border-radius:10px; padding:12px 14px; font-size:13px; margin-top:14px; }
@@ -38,6 +45,7 @@ main { max-width:900px; margin:24px auto; padding:0 16px; }
 <body>
 <header>
   <h1>⚔️ 三国杀 · 联机大厅</h1>
+  <button type="button" id="btn-theme" class="theme-btn" title="切换亮色/夜间模式">🌙</button>
   <div class="user" id="user-info"></div>
 </header>
 <main>
@@ -76,6 +84,20 @@ main { max-width:900px; margin:24px auto; padding:0 16px; }
 
 <script>
 (function(){
+  // 主题切换（与主界面一致：暗色/亮色/跟随系统）
+  function applyTheme(t) {
+    var root = document.documentElement;
+    if (t === 'dark') { root.setAttribute('data-theme', 'dark'); document.getElementById('btn-theme').textContent = '☀️'; }
+    else if (t === 'light') { root.setAttribute('data-theme', 'light'); document.getElementById('btn-theme').textContent = '🌙'; }
+    else { root.removeAttribute('data-theme'); document.getElementById('btn-theme').textContent = window.matchMedia('(prefers-color-scheme: dark)').matches ? '🌙' : '☀️'; }
+    localStorage.setItem('jz_theme', t);
+  }
+  applyTheme(localStorage.getItem('jz_theme') || 'system');
+  document.getElementById('btn-theme').onclick = function () {
+    var cur = localStorage.getItem('jz_theme') || 'system';
+    applyTheme(cur === 'dark' ? 'light' : cur === 'light' ? 'system' : 'dark');
+  };
+
   var token = localStorage.getItem('jz_token') || '';
   var nickname = localStorage.getItem('jz_nickname') || '';
   var username = localStorage.getItem('jz_username') || '';
@@ -148,7 +170,9 @@ main { max-width:900px; margin:24px auto; padding:0 16px; }
       if (!d.ok) { alert(d.error || '创建失败'); return; }
       document.getElementById('m-roomcode').textContent = d.roomcode;
       document.getElementById('m-mode').textContent = d.mode;
-      document.getElementById('m-connectstr').textContent = d.connect_str;
+      // 连接串兜底：后端异常或用户名为空时手动组装，保证不为空
+      var cs = d.connect_str || ('124.222.195.163:8080 ' + (username || nickname || '玩家') + '@' + d.roomcode);
+      document.getElementById('m-connectstr').textContent = cs;
       document.getElementById('create-modal').classList.remove('hidden');
       loadRooms();
     }).catch(function (e) { alert('创建失败: ' + e.message); });
