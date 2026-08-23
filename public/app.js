@@ -847,6 +847,12 @@
       activateLedger(id);
     };
 
+    // 重命名当前账本（顶部快捷按钮）
+    $('#btn-rename-ledger').onclick = function () {
+      if (!state.currentLedgerId) { toast('请先选择账本'); return; }
+      renameLedger(state.currentLedgerId);
+    };
+
     // 记账表单
     document.querySelectorAll('.type-toggle button').forEach(function (b) {
       b.onclick = function () {
