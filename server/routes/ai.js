@@ -221,11 +221,25 @@ function runTool(toolName, args) {
   return { error: '未知工具' };
 }
 
-// AI 对话：body = { message, ledger_id?, provider_id?, model? }
+// AI 对话：body = { message, ledger_id?, provider_id?, model?, messages? }
+// messages: 可选的历史对话（[{role:'user'|'assistant', content}...]），用于多轮上下文
 router.post('/chat', async (req, res) => {
   const message = (req.body && req.body.message || '').toString().trim();
   if (!message) return res.status(400).json({ error: '请输入内容' });
   const ledgerId = Number(req.body.ledger_id) || req.user.currentLedgerId;
+
+  // 校验并规范化历史消息（最多保留最近 20 条，防止上下文过长）
+  const rawHistory = Array.isArray(req.body.messages) ? req.body.messages : [];
+  const history = [];
+  rawHistory.forEach(function (m) {
+    if (!m || typeof m !== 'object') return;
+    var role = m.role === 'assistant' ? 'assistant' : 'user';
+    var content = String(m.content == null ? '' : m.content).trim();
+    if (!content) return;
+    history.push({ role: role, content: content });
+  });
+  const MAX_HISTORY = 20;
+  const historySlice = history.slice(-MAX_HISTORY);
 
   // 选出目标供应商
   let providers;
@@ -268,6 +282,8 @@ router.post('/chat', async (req, res) => {
     '3. 用户询问某月消费时，用 query_summary 或 query_month_total 查询后回答。',
     '4. 分类必须从可用分类中选择，没有合适分类就用「其他」。',
     '5. 回答用简体中文，简洁自然。',
+    '6. 这是多轮对话，用户前面的消息见 messages 历史。回答时可引用之前说过的话。',
+    '7. 用户可能用代词指代前面提过的内容（如"它""那个""这家店"），根据上下文理解。',
   ].join('\n');
 
   const tools = [
@@ -325,8 +341,9 @@ router.post('/chat', async (req, res) => {
       model: model,
       messages: [
         { role: 'system', content: system },
+      ].concat(historySlice, [
         { role: 'user', content: message },
-      ],
+      ]),
       tools: tools,
       tool_choice: 'auto',
       temperature: 0.3,
@@ -359,10 +376,11 @@ router.post('/chat', async (req, res) => {
           model: model,
           messages: [
             { role: 'system', content: system },
+          ].concat(historySlice, [
             { role: 'user', content: message },
             { role: 'assistant', content: null, tool_calls: [call] },
             { role: 'tool', tool_call_id: call.id, content: JSON.stringify(result) },
-          ],
+          ]),
           temperature: 0.3,
           stream: false,
         }),

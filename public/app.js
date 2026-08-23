@@ -484,7 +484,9 @@
     }
   }
 
-  // ================= AI 聊天 =================
+  // ================= AI 聊天（多轮上下文） =================
+  var aiHistory = []; // [{role:'user'|'assistant', content}]
+
   function appendAiMsg(role, text) {
     var list = $('#ai-chat-list');
     var div = document.createElement('div');
@@ -495,6 +497,22 @@
     div.appendChild(bubble);
     list.appendChild(div);
     list.scrollTop = list.scrollHeight;
+  }
+
+  function clearAiChat() {
+    aiHistory = [];
+    var list = $('#ai-chat-list');
+    list.innerHTML = '';
+    var div = document.createElement('div');
+    div.className = 'ai-msg ai-bot';
+    div.innerHTML = '<div class="ai-bubble">你好！我是 AI 记账助手 🤖<br>对话已清空。可以直接说「今天午饭花了 25 块」帮你记账，也可以问我「这个月花了多少」。</div>';
+    list.appendChild(div);
+    updateAiCount();
+  }
+
+  function updateAiCount() {
+    var el = $('#ai-count');
+    if (el) el.textContent = aiHistory.length ? '已记住 ' + Math.ceil(aiHistory.length / 2) + ' 轮对话' : '新对话';
   }
 
   function sendAiMessage() {
@@ -514,10 +532,17 @@
     }
     var last = $('#ai-chat-list .ai-msg:last-child .ai-bubble');
     var pending = last;
-    api('/ai/chat', { method: 'POST', body: { message: text, ledger_id: state.currentLedgerId, provider_id: providerId, model: model } })
+    api('/ai/chat', {
+      method: 'POST',
+      body: { message: text, ledger_id: state.currentLedgerId, provider_id: providerId, model: model, messages: aiHistory },
+    })
       .then(function (data) {
         pending.textContent = '';
         pending.innerHTML = esc(data.reply || '完成').replace(/\n/g, '<br>');
+        // 记录到上下文历史（用户 + 助手）
+        aiHistory.push({ role: 'user', content: text });
+        aiHistory.push({ role: 'assistant', content: data.reply || '完成' });
+        updateAiCount();
         if (data.tool_results && data.tool_results.length) {
           var acted = data.tool_results.filter(function (t) { return t.name === 'add_record'; });
           if (acted.length) { loadRecords(); if (state.user) refreshAll(); }
@@ -526,9 +551,6 @@
       .catch(function (e) {
         pending.textContent = '';
         pending.innerHTML = esc(e.message);
-        if (String(e.message).indexOf('请先在') >= 0) {
-          // 提示去设置
-        }
       });
   }
 
@@ -1280,6 +1302,7 @@
 
     // AI 聊天
     $('#ai-send').onclick = sendAiMessage;
+    $('#ai-clear-chat').onclick = clearAiChat;
     $('#ai-chat-input').onkeydown = function (e) {
       if (e.key === 'Enter') { e.preventDefault(); sendAiMessage(); }
     };
@@ -1396,6 +1419,7 @@
   // ================= 启动 =================
   bindEvents();
   initTheme();
+  updateAiCount();
   if (state.token) {
     bootApp();
   } else {
