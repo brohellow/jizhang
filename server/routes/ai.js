@@ -184,35 +184,71 @@ function stripTags(html) {
 async function webSearch(query) {
   if (!query || !String(query).trim()) return { error: '搜索词为空' };
   const q = encodeURIComponent(String(query).trim());
-  const url = 'https://cn.bing.com/search?q=' + q + '&setlang=zh-cn';
+  const url = 'https://cn.bing.com/search?q=' + q + '&mkt=zh-CN';
   try {
     const resp = await fetch(url, {
       redirect: 'follow',
       headers: {
-        'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0 Safari/537.36',
-        'Accept-Language': 'zh-CN,zh;q=0.9',
+        'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36',
+        'Accept-Language': 'zh-CN,zh;q=0.9,en;q=0.8',
+        'Cookie': 'SRCHHPGUSR=SRCHLANG=zh-Hans; _EDGE_S=mkt=zh-cn',
+        'Referer': 'https://cn.bing.com/',
       },
     });
     if (!resp.ok) return { error: '搜索失败 (' + resp.status + ')' };
     const html = await resp.text();
     const results = [];
-    const liRe = /<li class="b_algo"[\s\S]*?<\/li>/gi;
-    const liMatches = html.match(liRe) || [];
-    liMatches.forEach(function (li) {
+    // 用 h2 里的链接作为结果锚点（Bing 每个 b_algo 都有 <h2><a>）
+    const h2Re = /<h2[^>]*><a[^>]*href="([^"]+)"[^>]*>([\s\S]*?)<\/a><\/h2>/gi;
+    const h2Matches = html.match(h2Re) || [];
+    h2Matches.forEach(function (block) {
       if (results.length >= 5) return;
-      const titleM = li.match(/<h2>[\s\S]*?<a[^>]*href="([^"]+)"[^>]*>([\s\S]*?)<\/a>/i);
-      if (!titleM) return;
-      const snippetM = li.match(/<p[^>]*>([\s\S]*?)<\/p>/i);
-      results.push({
-        title: stripTags(titleM[2]).slice(0, 120),
-        url: titleM[1].slice(0, 300),
-        snippet: snippetM ? stripTags(snippetM[1]).slice(0, 300) : '',
-      });
+      const m = /<h2[^>]*><a[^>]*href="([^"]+)"[^>]*>([\s\S]*?)<\/a><\/h2>/i.exec(block);
+      if (!m) return;
+      const url = m[1];
+      if (!url || url.indexOf('http') !== 0) return; // 过滤站内链接
+      const title = stripTags(m[2]).slice(0, 120);
+      if (!title) return;
+      // 找该 h2 之后最近的摘要 <p>
+      const afterIdx = html.indexOf(block) + block.length;
+      const tail = html.slice(afterIdx, afterIdx + 1200);
+      const pM = tail.match(/<p[^>]*>([\s\S]*?)<\/p>/i);
+      const snippet = pM ? stripTags(pM[1]).slice(0, 300) : '';
+      results.push({ title: title, url: url, snippet: snippet });
     });
     if (!results.length) return { note: '未找到相关结果' };
     return { results: results };
   } catch (err) {
     return { error: '搜索出错: ' + err.message };
+  }
+}
+
+// ===== 汇率查询（免费 API） =====
+async function getExchangeRate(base) {
+  const baseCurrency = String(base || 'CNY').toUpperCase().slice(0, 3);
+  try {
+    const resp = await fetch('https://open.er-api.com/v6/latest/' + baseCurrency, { timeout: 8000 });
+    if (!resp.ok) return { error: '汇率查询失败 (' + resp.status + ')' };
+    const data = await resp.json();
+    if (data.result !== 'success' || !data.rates) return { error: '汇率数据异常' };
+    const rates = data.rates;
+    // 提取常见货币
+    const common = ['USD', 'EUR', 'JPY', 'GBP', 'HKD', 'AUD', 'CAD', 'KRW', 'CNY', 'SGD'];
+    const out = {};
+    common.forEach(function (c) {
+      if (rates[c] != null) out[c] = rates[c];
+    });
+    return {
+      base: baseCurrency,
+      updated: data.time_last_update_utc || '',
+      rates: out,
+      // 给 AI 一个可读文本
+      text: common.filter(function (c) { return rates[c] != null && c !== baseCurrency; })
+        .map(function (c) { return '1 ' + baseCurrency + ' ≈ ' + Number(rates[c]).toFixed(4) + ' ' + c; })
+        .join('，'),
+    };
+  } catch (err) {
+    return { error: '汇率查询出错: ' + err.message };
   }
 }
 
@@ -332,6 +368,7 @@ router.post('/chat', async (req, res) => {
     '5. 回答用简体中文，简洁自然。',
     '6. 这是多轮对话，用户前面的消息见 messages 历史。回答时可引用之前说过的话。',
     '7. 用户可能用代词指代前面提过的内容（如"它""那个""这家店"），根据上下文理解。',
+    '8. 用户问汇率时用 get_exchange_rate 工具；问新闻/天气/节假日/行情等实时信息时用 web_search 工具联网查询。',
   ].join('\n');
 
   const tools = [
@@ -385,13 +422,26 @@ router.post('/chat', async (req, res) => {
       type: 'function',
       function: {
         name: 'web_search',
-        description: '联网搜索实时信息（今日汇率、新闻、天气、节假日、价格行情等）。当用户询问需要最新/实时信息的问题时使用',
+        description: '联网搜索实时信息（新闻、天气、节假日、价格行情等）。当用户询问需要最新/实时信息的问题时使用',
         parameters: {
           type: 'object',
           properties: {
             query: { type: 'string', description: '搜索关键词，中文或英文，具体明确' },
           },
           required: ['query'],
+        },
+      },
+    },
+    {
+      type: 'function',
+      function: {
+        name: 'get_exchange_rate',
+        description: '查询实时汇率。用户问"汇率""美元兑人民币""今天汇率"等时使用',
+        parameters: {
+          type: 'object',
+          properties: {
+            base: { type: 'string', description: '基准货币代码（3位，如 CNY/USD/EUR），默认 CNY' },
+          },
         },
       },
     },
@@ -433,6 +483,8 @@ router.post('/chat', async (req, res) => {
         let result;
         if (call.function.name === 'web_search') {
           result = await webSearch(parsed.query);
+        } else if (call.function.name === 'get_exchange_rate') {
+          result = await getExchangeRate(parsed.base);
         } else {
           result = runTool(call.function.name, parsed);
         }
