@@ -5,12 +5,16 @@
 
 ## 功能
 
-- **多账本**：家庭、生意、旅行等互不干扰，一键切换
+- **多账本**：家庭、生意、旅行等互不干扰，一键切换，顶部 ✏️ 快速重命名
 - **基础记账**：收入/支出、分类（自带默认分类、可自定义）、备注、日期，支持编辑/删除/搜索/筛选/分页
 - **预算管理**：按月设置总预算和分类预算，进度条实时提示（>80% 变黄，超支变红）
 - **统计报表**：月度汇总、近 12 个月收支趋势、月度分类占比、每日收支，ECharts 图表
 - **账号系统**：注册/登录（scrypt 加密 + Bearer Token），数据按用户隔离
+- **个人中心**：查看资料、修改昵称、修改密码（改密后强制重新登录）
+- **CSV 导出**：按筛选条件一键导出账目为 CSV（Excel 可开，带中文表头）
+- **AI 助手**：对话式智能记账（"今天午饭 25 块"→ 自动入账）、财务问答、消费分析；支持自定义供应商（DeepSeek / OpenAI / 兼容接口）与 API Key，配置可存个人中心或独立配置文件
 - **微信登录**：预留 `POST /api/auth/wx-login`，配置环境变量后即可对接小程序 `wx.login`
+- **手机端适配**：响应式界面，手机浏览器可直接使用（顶栏紧凑、筛选两列、分类大按钮）
 
 ## 技术栈
 
@@ -43,8 +47,9 @@ npm start            # 启动，默认 http://localhost:3000
 │   ├── index.js             # Express 入口（静态前端 + API + 错误处理）
 │   ├── db.js                # SQLite schema、种子数据、密码哈希、演示数据
 │   ├── auth.js              # Bearer Token 认证中间件
+│   ├── ai-config.js         # AI 配置模块（~/.jizhang/ai-config.json + 环境变量覆盖）
 │   ├── util.js              # 日期/金额工具
-│   └── routes/              # auth / ledgers / categories / records / budgets / stats
+│   └── routes/              # auth / ledgers / categories / records / budgets / stats / ai
 ├── public/                  # Web 前端（本地试用版，之后由小程序替代）
 │   ├── index.html
 │   ├── style.css
@@ -53,13 +58,15 @@ npm start            # 启动，默认 http://localhost:3000
 ├── scripts/
 │   ├── smoke-test.mjs           # 核心 API 冒烟测试
 │   ├── edge-test.mjs            # 边界/权限测试
-│   └── miniprogram-flow-test.mjs # 小程序端 API 流程模拟测试
+│   ├── miniprogram-flow-test.mjs # 小程序端 API 流程模拟测试
+│   └── backup-db.mjs            # 数据库一致性快照备份
 ├── miniprogram/             # 微信小程序端（导入微信开发者工具即可用）
 │   ├── app.json / app.js / app.wxss
 │   ├── project.config.json
 │   ├── utils/               # config(后端地址) / api / format / charts
 │   └── pages/               # login / records / stats / budget / profile
 ├── data/                    # SQLite 数据文件（自动创建，已 gitignore）
+├── backups/                 # 数据库备份（自动创建，已 gitignore）
 └── package.json
 ```
 
@@ -75,7 +82,9 @@ npm start            # 启动，默认 http://localhost:3000
 | POST | `/auth/register` | 注册 `{username, password, nickname?}` → `{token, user}` |
 | POST | `/auth/login` | 登录 `{username, password}` → `{token, user}` |
 | POST | `/auth/wx-login` | 微信登录 `{code}` → `{token, user, is_new}`（需配置 WX_APPID/WX_SECRET） |
-| GET | `/auth/me` | 当前用户 + 账本列表 |
+| GET | `/auth/me` | 当前用户信息（含 created_at）+ 账本列表 |
+| PUT | `/auth/me` | 修改昵称 `{nickname}` |
+| PUT | `/auth/password` | 修改密码 `{old_password, new_password}`（成功后清除该用户所有会话，强制重新登录） |
 | POST | `/auth/logout` | 退出 |
 
 ### 账本 ledgers
@@ -124,6 +133,37 @@ npm start            # 启动，默认 http://localhost:3000
 | GET | `/stats/by-category?type=expense` | 分类占比（含 pct） |
 | GET | `/stats/daily` | 每日收支 |
 
+### AI 助手 ai
+
+| 方法 | 路径 | 说明 |
+|---|---|---|
+| GET | `/ai/settings` | 读取 AI 配置（Key 打码；含来源 source：user=个人中心 / file=配置文件 / default=默认） |
+| PUT | `/ai/settings` | 保存 AI 配置 `{provider, base_url?, model?, api_key?, enabled}`（api_key 留空=不修改） |
+| POST | `/ai/settings/template` | 在用户目录生成配置文件模板 |
+| POST | `/ai/chat` | AI 对话 `{message, ledger_id?}` → `{reply, tool_results}`（自动记账/查询） |
+
+**AI 配置模块化**：配置来源按优先级 环境变量 > 个人中心(数据库) > 全局文件 > 内置默认。
+
+- **全局配置文件**：`~/.jizhang/ai-config.json`（Windows: `C:\Users\<用户名>\.jizhang\`；pm2 以 root 运行则为 `/root/.jizhang/`），首次启动自动生成 `ai-config.example.json` 模板。修改后重启生效。
+- **环境变量**：`JZ_AI_PROVIDER` / `JZ_AI_BASE_URL` / `JZ_AI_MODEL` / `JZ_AI_API_KEY` / `JZ_AI_ENABLED`（优先级最高，适合部署注入）
+- **个人中心**：网页「个人中心 → AI 设置」保存的配置会覆盖全局文件（每用户独立）
+- 支持供应商：`deepseek`（默认）、`openai`、`custom`（任何 OpenAI 兼容接口，需填 base_url + model）
+
+配置文件示例：
+
+```json
+{
+  "provider": "deepseek",
+  "base_url": "",
+  "model": "",
+  "api_key": "sk-在此填入你的APIKey",
+  "enabled": true
+}
+```
+
+> base_url/model 留空时使用预设默认值（deepseek→`https://api.deepseek.com`/`deepseek-chat`；openai→`https://api.openai.com/v1`/`gpt-4o-mini`）。
+> 配置为 JSON 格式错误时，接口会返回带路径和原因的清晰报错，不影响其他功能。
+
 ## 微信小程序对接
 
 后端已按小程序习惯设计，直接调用即可：
@@ -159,6 +199,22 @@ sudo certbot --nginx -d jizhang.example.com
 ```
 
 - 数据文件在 `data/jizhang.db`（WAL 模式，单文件）。
+
+### AI 配置（可选）
+
+不配置则 AI 助手不可用，其他功能不受影响。两种方式：
+
+```bash
+# 方式一：服务器上直接写配置文件（推荐）
+sudo mkdir -p /root/.jizhang
+sudo nano /root/.jizhang/ai-config.json   # 参考 ai-config.example.json
+sudo pm2 restart jizhang-api
+
+# 方式二：环境变量注入（适合部署脚本）
+JZ_AI_PROVIDER=deepseek JZ_AI_API_KEY=sk-xxx JZ_AI_ENABLED=1 pm2 restart jizhang-api
+```
+
+也可以让用户登录后在网页「个人中心 → AI 设置」里填（存数据库，每用户独立）。
 
 ### 数据自动备份
 
