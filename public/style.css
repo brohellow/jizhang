@@ -508,8 +508,8 @@ main { max-width: 1100px; margin: 0 auto; padding: 20px; }
 .modal-body { padding: 18px 20px 22px; }
 .modal-body input { margin-bottom: 10px; }
 
-/* 左右分栏弹窗 */
-.modal-split { display: flex; max-width: 720px; padding: 0; overflow: hidden; }
+/* 左右分栏弹窗（固定高度，两个面板等高；内容多时右侧滚动） */
+.modal-split { display: flex; max-width: 720px; padding: 0; overflow: hidden; height: min(620px, 78vh); }
 .modal-split-side {
   width: 168px;
   flex-shrink: 0;
@@ -545,8 +545,8 @@ main { max-width: 1100px; margin: 0 auto; padding: 20px; }
   box-shadow: inset 3px 0 0 var(--primary);
 }
 .pm-nav-ic { font-size: 16px; }
-.modal-split-main { flex: 1; min-width: 0; display: flex; flex-direction: column; max-height: 70vh; }
-.modal-split-main .modal-body { overflow-y: auto; }
+.modal-split-main { flex: 1; min-width: 0; display: flex; flex-direction: column; height: 100%; overflow: hidden; }
+.modal-split-main .modal-body { flex: 1; overflow-y: auto; }
 
 /* 模型面板：provider 行 + 状态点 */
 .pm-provider-row {
@@ -598,7 +598,7 @@ main { max-width: 1100px; margin: 0 auto; padding: 20px; }
 .pm-empty { color: var(--muted); text-align: center; padding: 24px 0; font-size: 13px; }
 
 @media (max-width: 640px) {
-  .modal-split { flex-direction: column; max-height: 85vh; }
+  .modal-split { flex-direction: column; height: min(620px, 80vh); }
   .modal-split-side {
     width: 100%;
     flex-direction: row;
@@ -611,7 +611,7 @@ main { max-width: 1100px; margin: 0 auto; padding: 20px; }
   .modal-split-nav { flex-direction: row; gap: 6px; width: 100%; }
   .pm-nav-item { justify-content: center; padding: 8px 10px; }
   .pm-nav-item.active { box-shadow: inset 0 -2px 0 var(--primary); }
-  .modal-split-main { max-height: 60vh; }
+  .modal-split-main { height: auto; flex: 1; }
 }
 
 .profile-row {
