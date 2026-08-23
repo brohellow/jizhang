@@ -13,6 +13,20 @@
 //   - 返回 429 + JSON 错误，带 Retry-After 头
 // ============================================================
 
+// ===== 白名单（特权 IP，永不限流）=====
+// 通过环境变量 JZ_RATE_LIMIT_WHITELIST 配置，逗号分隔，如：
+//   JZ_RATE_LIMIT_WHITELIST=218.1.209.181,127.0.0.1
+function whitelist() {
+  const raw = (process.env.JZ_RATE_LIMIT_WHITELIST || '').split(',').map(function (s) { return s.trim(); }).filter(Boolean);
+  // 归一化：去掉 IPv4-mapped IPv6 的 ::ffff: 前缀
+  function norm(ip) {
+    return String(ip || '').replace(/^::ffff:/i, '');
+  }
+  const set = new Set(raw.map(norm));
+  return function (ip) { return set.has(norm(ip)); };
+}
+const isWhitelisted = whitelist();
+
 // 存储：Map<key, { count, resetAt }>
 const buckets = new Map();
 
@@ -42,6 +56,8 @@ export function rateLimit(opts) {
   };
 
   return function (req, res, next) {
+    const ip = req.ip || req.socket.remoteAddress || 'unknown';
+    if (isWhitelisted(ip)) return next(); // 白名单 IP 永不限流
     const key = String(keyFn(req));
     const now = Date.now();
     let bucket = buckets.get(key);
@@ -71,6 +87,7 @@ export function loginThrottle() {
   return function (req, res, next) {
     const username = String((req.body && req.body.username) || '').toLowerCase();
     const ip = req.ip || req.socket.remoteAddress || 'unknown';
+    if (isWhitelisted(ip)) return next(); // 白名单 IP 永不限流
     const key = (username || 'anon') + '|' + ip;
     const now = Date.now();
     const entry = attempts.get(key);
