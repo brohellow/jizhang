@@ -136,7 +136,17 @@
     }
   }
 
-  // ================= 个人中心 =================
+  // ================= 用户菜单（个人中心 / 模型） =================
+  function switchPmPanel(name) {
+    var isProfile = name === 'profile';
+    $('#pm-tab-profile').classList.toggle('active', isProfile);
+    $('#pm-tab-models').classList.toggle('active', !isProfile);
+    $('#pm-panel-profile').classList.toggle('hidden', !isProfile);
+    $('#pm-panel-models').classList.toggle('hidden', isProfile);
+    $('#pm-title').textContent = isProfile ? '个人中心' : '模型';
+    if (!isProfile) loadAiSettings();
+  }
+
   function openProfile() {
     var u = state.user || {};
     $('#profile-username').textContent = u.username || '';
@@ -146,7 +156,7 @@
     $('#profile-new-password').value = '';
     $('#profile-confirm-password').value = '';
     $('#profile-modal').classList.remove('hidden');
-    loadAiSettings();
+    switchPmPanel('profile');
   }
 
   function closeProfile() {
@@ -155,7 +165,7 @@
 
   // ================= AI 设置（多供应商） =================
   var aiProviders = [];
-  var aiEditingId = null;
+  var aiExpandedId = null; // 当前展开的供应商卡片（声明在 renderAiProviderList 前）
 
   function loadAiSettings() {
     return api('/ai/providers').then(function (data) {
@@ -170,90 +180,273 @@
     var box = $('#ai-provider-list');
     if (!box) return;
     if (!aiProviders.length) {
-      box.innerHTML = '<div class="empty">还没有供应商，点「添加供应商」配置你的 API Key</div>';
+      box.innerHTML = '<div class="pm-empty">还没有配置模型供应商<br>点击下方「＋ 添加供应商」开始</div>';
       $('#ai-key-hint').textContent = '支持 DeepSeek / OpenAI / 自定义接口，每个供应商可配多个模型';
       return;
     }
     var html = [];
     aiProviders.forEach(function (p) {
       var src = p.source === 'user' ? '我的' : p.source === 'file' ? '配置' : '环境';
+      var dot = p.api_key_set ? 'ok' : 'missing';
+      var expanded = aiExpandedId === p.id;
+      html.push('<div class="pm-provider-item">');
       html.push(
-        '<div class="ai-provider-item">' +
-        '<div class="ai-p-main">' +
-        '<div class="ai-p-name">' + esc(p.name) + ' <span class="muted">(' + src + ')</span>' + (p.enabled ? '' : ' <span class="muted">已停用</span>') + '</div>' +
-        '<div class="ai-p-meta">' + esc(p.provider) + (p.base_url ? ' · ' + esc(p.base_url) : '') + '</div>' +
-        '<div class="ai-p-meta">模型: ' + (p.models || []).map(esc).join('、') + '</div>' +
-        '<div class="ai-p-meta">' + (p.api_key_set ? 'Key: ' + esc(p.api_key_masked) : '未填 Key') + '</div>' +
+        '<div class="pm-provider-row" data-ai-toggle="' + p.id + '">' +
+        '<span class="pm-key-dot ' + dot + '" title="' + (p.api_key_set ? 'API Key 已配置' : '缺少 API Key') + '"></span>' +
+        '<div class="pm-provider-main">' +
+        '<div class="pm-provider-name">' + esc(p.name) + ' <span class="muted">(' + src + ')</span>' + (p.enabled ? '' : ' <span class="muted">已停用</span>') + '</div>' +
+        '<div class="pm-provider-meta">' + esc(p.provider) + (p.base_url ? ' · ' + esc(p.base_url) : '') + ' · ' + (p.models || []).length + ' 个模型</div>' +
         '</div>' +
+        '<div class="pm-row-actions">' +
         (p.source === 'user'
-          ? '<div class="ai-p-btns">' +
-            '<button type="button" class="btn ghost sm" data-ai-edit="' + p.id + '">编辑</button>' +
-            '<button type="button" class="btn danger sm" data-ai-del="' + p.id + '">删除</button>' +
-            '</div>'
-          : '<div class="ai-p-btns"><span class="muted sm">只读</span></div>') +
+          ? '<button type="button" class="btn danger sm" data-ai-del="' + p.id + '">删除</button>'
+          : '<span class="muted sm">只读</span>') +
+        '</div>' +
         '</div>'
       );
+      if (expanded) {
+        html.push(renderProviderCard(p));
+      }
+      html.push('</div>');
     });
     box.innerHTML = html.join('');
-    box.querySelectorAll('[data-ai-edit]').forEach(function (b) {
-      b.onclick = function () { openAiProviderForm(b.dataset.aiEdit); };
+    // 行点击展开/收起
+    box.querySelectorAll('[data-ai-toggle]').forEach(function (r) {
+      r.onclick = function () {
+        var id = r.dataset.aiToggle;
+        aiExpandedId = aiExpandedId === id ? null : id;
+        renderAiProviderList();
+      };
     });
+    // 删除
     box.querySelectorAll('[data-ai-del]').forEach(function (b) {
-      b.onclick = function () {
+      b.onclick = function (e) {
+        e.stopPropagation();
         if (!confirm('确定删除该供应商吗？')) return;
         var id = b.dataset.aiDel.replace('db:', '');
         api('/ai/providers/' + id, { method: 'DELETE' }).then(function () {
           toast('已删除');
+          if (aiExpandedId === b.dataset.aiDel) aiExpandedId = null;
           loadAiSettings();
         }).catch(function (e) { toast(e.message); });
       };
     });
+    // 展开卡片内事件
+    var expanded = aiExpandedId ? aiProviders.filter(function (p) { return p.id === aiExpandedId; })[0] : null;
+    if (expanded) bindProviderCard(expanded);
   }
 
-  function openAiProviderForm(id) {
-    aiEditingId = id || null;
-    $('#ai-provider-form').classList.remove('hidden');
-    $('#ai-name').value = '';
-    $('#ai-provider').value = 'deepseek';
-    $('#ai-base-url').value = '';
-    $('#ai-models').value = '';
-    $('#ai-api-key').value = '';
-    $('#ai-enabled').checked = true;
-    if (id) {
-      var p = null;
-      aiProviders.forEach(function (x) { if (x.id === id) p = x; });
-      if (p) {
-        $('#ai-name').value = p.name || '';
-        $('#ai-provider').value = p.provider || 'deepseek';
-        $('#ai-base-url').value = p.base_url || '';
-        $('#ai-models').value = (p.models || []).join(', ');
-        $('#ai-enabled').checked = !!p.enabled;
-        $('#ai-api-key').placeholder = p.api_key_set ? ('留空=不修改（当前 ' + p.api_key_masked + '）') : '请输入 API Key';
-      }
-    } else {
-      $('#ai-api-key').placeholder = 'API Key（编辑时留空=不修改）';
-    }
+  // 渲染一个供应商的展开编辑卡片（DSH 风格：API Key + baseURL + 模型编辑器）
+  function renderProviderCard(p) {
+    var s = '';
+    s += '<div class="pm-provider-card">';
+    s += '<div class="pm-card-label">供应商</div>';
+    s += '<div class="pm-model-inputs">' +
+      '<input type="text" data-pf="name" value="' + esc(p.name) + '" placeholder="显示名称">' +
+      '<select data-pf="provider">' +
+      '<option value="deepseek"' + (p.provider === 'deepseek' ? ' selected' : '') + '>DeepSeek</option>' +
+      '<option value="openai"' + (p.provider === 'openai' ? ' selected' : '') + '>OpenAI</option>' +
+      '<option value="custom"' + (p.provider === 'custom' ? ' selected' : '') + '>自定义（OpenAI 兼容）</option>' +
+      '</select>' +
+      '<input type="text" data-pf="base_url" value="' + esc(p.base_url || '') + '" placeholder="接口地址（Base URL）">' +
+      '</div>';
+    s += '<div class="pm-card-label">API 密钥</div>';
+    s += '<div class="pm-model-inputs">' +
+      '<input type="password" data-pf="api_key" placeholder="' + (p.api_key_set ? '留空=不修改（当前 ' + esc(p.api_key_masked) + '）' : '请输入 API Key') + '" autocomplete="off">' +
+      '</div>';
+    s += '<div class="pm-card-label">模型列表</div>';
+    s += '<div class="pm-model-inputs" data-model-rows>' +
+      (p.models || []).map(function (m) {
+        return '<div class="pm-model-row"><input type="text" data-model-id value="' + esc(m) + '" placeholder="模型 ID（如 deepseek-chat）"><button type="button" class="btn ghost sm" data-model-del>✕</button></div>';
+      }).join('') +
+      '</div>';
+    s += '<div style="display:flex;gap:8px">' +
+      '<button type="button" class="btn ghost sm" data-model-add>＋ 添加模型</button>' +
+      '<button type="button" class="btn ghost sm" data-probe title="向接口询问可用模型">获取模型</button>' +
+      '</div>';
+    s += '<div class="pm-probe-hint" data-probe-hint></div>';
+    s += '<div class="pm-card-btns">' +
+      '<button type="button" class="btn primary" data-ai-save>应用</button>' +
+      '<button type="button" class="btn ghost" data-ai-cancel>收起</button>' +
+      '</div>';
+    s += '</div>';
+    return s;
   }
 
-  function saveAiSettings() {
-    var id = aiEditingId;
-    var body = {
-      name: $('#ai-name').value.trim(),
-      provider: $('#ai-provider').value,
-      base_url: $('#ai-base-url').value.trim(),
-      models: $('#ai-models').value.split(',').map(function (s) { return s.trim(); }).filter(Boolean),
-      api_key: $('#ai-api-key').value.trim(),
-      enabled: $('#ai-enabled').checked,
+  // 绑定展开卡片内的事件（渲染后调用）
+  function bindProviderCard(p) {
+    var card = document.querySelector('.pm-provider-card');
+    if (!card) return;
+    // 添加模型
+    card.querySelector('[data-model-add]').onclick = function () {
+      var rows = card.querySelector('[data-model-rows]');
+      var div = document.createElement('div');
+      div.className = 'pm-model-row';
+      div.innerHTML = '<input type="text" data-model-id placeholder="模型 ID（如 deepseek-chat）"><button type="button" class="btn ghost sm" data-model-del>✕</button>';
+      rows.appendChild(div);
+      div.querySelector('[data-model-del]').onclick = function () { div.remove(); };
     };
-    var req = id
-      ? api('/ai/providers/' + id.replace('db:', ''), { method: 'PUT', body: body })
-      : api('/ai/providers', { method: 'POST', body: body });
-    req.then(function () {
-      toast('已保存');
-      aiEditingId = null;
-      $('#ai-provider-form').classList.add('hidden');
-      loadAiSettings();
-    }).catch(function (e) { toast(e.message); });
+    // 删除模型
+    card.querySelectorAll('[data-model-del]').forEach(function (b) {
+      b.onclick = function () { b.closest('.pm-model-row').remove(); };
+    });
+    // 获取模型：向当前端点探测（需 API Key）
+    card.querySelector('[data-probe]').onclick = function () {
+      var key = card.querySelector('[data-pf="api_key"]').value.trim() || p.api_key;
+      var url = (card.querySelector('[data-pf="base_url"]').value.trim() || '').replace(/\/$/, '');
+      var hint = card.querySelector('[data-probe-hint]');
+      if (!key) { hint.textContent = '请先填写 API Key 再获取模型'; return; }
+      if (!url) {
+        var prov = card.querySelector('[data-pf="provider"]').value;
+        url = prov === 'deepseek' ? 'https://api.deepseek.com' : prov === 'openai' ? 'https://api.openai.com/v1' : '';
+        if (!url) { hint.textContent = '自定义接口请先填写 Base URL'; return; }
+      }
+      hint.textContent = '正在获取模型…';
+      fetch(url + '/models', {
+        headers: { Authorization: 'Bearer ' + key },
+      }).then(function (r) { return r.json(); }).then(function (data) {
+        var list = (data && data.data) || [];
+        if (!list.length) { hint.textContent = '未获取到模型列表'; return; }
+        var ids = list.map(function (m) { return m.id; });
+        var rows = card.querySelector('[data-model-rows]');
+        rows.innerHTML = '';
+        ids.forEach(function (mid) {
+          var div = document.createElement('div');
+          div.className = 'pm-model-row';
+          div.innerHTML = '<input type="text" data-model-id value="' + esc(mid) + '"><button type="button" class="btn ghost sm" data-model-del>✕</button>';
+          rows.appendChild(div);
+          div.querySelector('[data-model-del]').onclick = function () { div.remove(); };
+        });
+        hint.textContent = '已获取 ' + ids.length + ' 个模型，可删减后点「应用」';
+      }).catch(function (e) {
+        hint.textContent = '获取失败：' + (e.message || '网络错误');
+      });
+    };
+    // 保存（应用）
+    card.querySelector('[data-ai-save]').onclick = function () {
+      var models = Array.prototype.map.call(card.querySelectorAll('[data-model-id]'), function (inp) {
+        return inp.value.trim();
+      }).filter(Boolean);
+      var body = {
+        name: card.querySelector('[data-pf="name"]').value.trim() || p.name,
+        provider: card.querySelector('[data-pf="provider"]').value,
+        base_url: card.querySelector('[data-pf="base_url"]').value.trim(),
+        api_key: card.querySelector('[data-pf="api_key"]').value.trim(),
+        models: models,
+        enabled: p.enabled,
+      };
+      var req = p.source === 'user'
+        ? api('/ai/providers/' + p.id.replace('db:', ''), { method: 'PUT', body: body })
+        : api('/ai/providers', { method: 'POST', body: body });
+      req.then(function () {
+        toast('已应用');
+        aiExpandedId = null;
+        loadAiSettings();
+      }).catch(function (e) { toast(e.message); });
+    };
+    // 收起
+    card.querySelector('[data-ai-cancel]').onclick = function () {
+      aiExpandedId = null;
+      renderAiProviderList();
+    };
+  }
+
+  // DSH 风格新增：在列表头部渲染一个"新增供应商"卡片
+  function openAiProviderForm() {
+    var box = $('#ai-provider-list');
+    var card = document.createElement('div');
+    card.className = 'pm-provider-card';
+    card.id = 'pm-new-card';
+    card.innerHTML =
+      '<div class="pm-card-label">新增供应商</div>' +
+      '<div class="pm-model-inputs">' +
+      '<input type="text" data-pf="name" placeholder="显示名称（如：我的 DeepSeek）">' +
+      '<select data-pf="provider">' +
+      '<option value="deepseek">DeepSeek</option>' +
+      '<option value="openai">OpenAI</option>' +
+      '<option value="custom">自定义（OpenAI 兼容）</option>' +
+      '</select>' +
+      '<input type="text" data-pf="base_url" placeholder="接口地址（选预设可留空）">' +
+      '<input type="password" data-pf="api_key" placeholder="API Key" autocomplete="off">' +
+      '</div>' +
+      '<div class="pm-card-label">模型列表</div>' +
+      '<div class="pm-model-inputs" data-model-rows>' +
+      '<div class="pm-model-row"><input type="text" data-model-id placeholder="模型 ID（如 deepseek-chat）"><button type="button" class="btn ghost sm" data-model-del>✕</button></div>' +
+      '</div>' +
+      '<div style="display:flex;gap:8px">' +
+      '<button type="button" class="btn ghost sm" data-model-add>＋ 添加模型</button>' +
+      '<button type="button" class="btn ghost sm" data-probe>获取模型</button>' +
+      '</div>' +
+      '<div class="pm-probe-hint" data-probe-hint></div>' +
+      '<div class="pm-card-btns">' +
+      '<button type="button" class="btn primary" data-ai-save>保存</button>' +
+      '<button type="button" class="btn ghost" data-ai-cancel>取消</button>' +
+      '</div>';
+    var old = document.getElementById('pm-new-card');
+    if (old) old.remove();
+    box.insertBefore(card, box.firstChild);
+    // 复用卡片事件绑定（p = 空对象）
+    bindNewProviderCard(card);
+  }
+
+  function bindNewProviderCard(card) {
+    card.querySelector('[data-model-add]').onclick = function () {
+      var rows = card.querySelector('[data-model-rows]');
+      var div = document.createElement('div');
+      div.className = 'pm-model-row';
+      div.innerHTML = '<input type="text" data-model-id placeholder="模型 ID"><button type="button" class="btn ghost sm" data-model-del>✕</button>';
+      rows.appendChild(div);
+      div.querySelector('[data-model-del]').onclick = function () { div.remove(); };
+    };
+    card.querySelectorAll('[data-model-del]').forEach(function (b) {
+      b.onclick = function () { b.closest('.pm-model-row').remove(); };
+    });
+    card.querySelector('[data-probe]').onclick = function () {
+      var key = card.querySelector('[data-pf="api_key"]').value.trim();
+      var url = card.querySelector('[data-pf="base_url"]').value.trim().replace(/\/$/, '');
+      var hint = card.querySelector('[data-probe-hint]');
+      var prov = card.querySelector('[data-pf="provider"]').value;
+      if (!key) { hint.textContent = '请先填写 API Key 再获取模型'; return; }
+      if (!url) {
+        url = prov === 'deepseek' ? 'https://api.deepseek.com' : prov === 'openai' ? 'https://api.openai.com/v1' : '';
+        if (!url) { hint.textContent = '自定义接口请先填写 Base URL'; return; }
+      }
+      hint.textContent = '正在获取模型…';
+      fetch(url + '/models', { headers: { Authorization: 'Bearer ' + key } })
+        .then(function (r) { return r.json(); }).then(function (data) {
+          var list = (data && data.data) || [];
+          if (!list.length) { hint.textContent = '未获取到模型列表'; return; }
+          var rows = card.querySelector('[data-model-rows]');
+          rows.innerHTML = '';
+          list.forEach(function (m) {
+            var div = document.createElement('div');
+            div.className = 'pm-model-row';
+            div.innerHTML = '<input type="text" data-model-id value="' + esc(m.id) + '"><button type="button" class="btn ghost sm" data-model-del>✕</button>';
+            rows.appendChild(div);
+            div.querySelector('[data-model-del]').onclick = function () { div.remove(); };
+          });
+          hint.textContent = '已获取 ' + list.length + ' 个模型，可删减后保存';
+        }).catch(function (e) { hint.textContent = '获取失败：' + (e.message || '网络错误'); });
+    };
+    card.querySelector('[data-ai-save]').onclick = function () {
+      var models = Array.prototype.map.call(card.querySelectorAll('[data-model-id]'), function (inp) {
+        return inp.value.trim();
+      }).filter(Boolean);
+      var body = {
+        name: card.querySelector('[data-pf="name"]').value.trim(),
+        provider: card.querySelector('[data-pf="provider"]').value,
+        base_url: card.querySelector('[data-pf="base_url"]').value.trim(),
+        api_key: card.querySelector('[data-pf="api_key"]').value.trim(),
+        models: models,
+        enabled: true,
+      };
+      api('/ai/providers', { method: 'POST', body: body })
+        .then(function () {
+          toast('已保存');
+          loadAiSettings();
+        }).catch(function (e) { toast(e.message); });
+    };
+    card.querySelector('[data-ai-cancel]').onclick = function () { card.remove(); };
   }
 
   function renderAiModelSelect() {
@@ -1019,18 +1212,12 @@
     $('#profile-confirm-password').onkeydown = function (e) { if (e.key === 'Enter') changePassword(); };
     document.addEventListener('keydown', function (e) { if (e.key === 'Escape') closeProfile(); });
 
-    // AI 供应商管理
-    $('#ai-add-provider').onclick = function () { openAiProviderForm(null); };
-    $('#ai-save-settings').onclick = saveAiSettings;
-    $('#ai-cancel-edit').onclick = function () {
-      aiEditingId = null;
-      $('#ai-provider-form').classList.add('hidden');
-    };
-    $('#ai-provider').onchange = function () {
-      var p = $('#ai-provider').value;
-      if (p === 'deepseek' && !$('#ai-base-url').value) $('#ai-base-url').value = 'https://api.deepseek.com';
-      if (p === 'openai' && !$('#ai-base-url').value) $('#ai-base-url').value = 'https://api.openai.com/v1';
-    };
+    // 用户菜单：个人中心 / 模型 切换
+    $('#pm-tab-profile').onclick = function () { switchPmPanel('profile'); };
+    $('#pm-tab-models').onclick = function () { switchPmPanel('models'); };
+
+    // 模型面板：新增供应商
+    $('#ai-add-provider').onclick = function () { openAiProviderForm(); };
 
     // AI 聊天
     $('#ai-send').onclick = sendAiMessage;

@@ -48,60 +48,56 @@
     </div>
   </header>
 
-  <!-- 个人中心弹窗 -->
+  <!-- 用户菜单弹窗（左侧栏位：个人中心 / 模型） -->
   <div id="profile-modal" class="modal-mask hidden">
-    <div class="modal">
-      <div class="modal-head">
-        <h2>👤 个人中心</h2>
-        <button type="button" id="profile-close" class="modal-x" aria-label="关闭">✕</button>
+    <div class="modal modal-split">
+      <div class="modal-split-side">
+        <div class="modal-split-brand">📒 记账本</div>
+        <nav class="modal-split-nav">
+          <button type="button" id="pm-tab-profile" class="pm-nav-item active">
+            <span class="pm-nav-ic">👤</span> 个人中心
+          </button>
+          <button type="button" id="pm-tab-models" class="pm-nav-item">
+            <span class="pm-nav-ic">🧠</span> 模型
+          </button>
+        </nav>
       </div>
-      <div class="modal-body">
-        <div class="profile-row">
-          <span class="profile-label">用户名</span>
-          <span id="profile-username" class="profile-value"></span>
+      <div class="modal-split-main">
+        <div class="modal-head">
+          <h2 id="pm-title">个人中心</h2>
+          <button type="button" id="profile-close" class="modal-x" aria-label="关闭">✕</button>
         </div>
-        <div class="profile-row">
-          <span class="profile-label">注册时间</span>
-          <span id="profile-created" class="profile-value"></span>
-        </div>
-        <div class="profile-row">
-          <span class="profile-label">昵称</span>
-          <input type="text" id="profile-nickname" maxlength="32" placeholder="你的昵称">
-        </div>
-        <button type="button" id="profile-save-nickname" class="btn primary block">保存昵称</button>
 
-        <hr class="profile-divider">
-        <h3 class="profile-section-title">修改密码</h3>
-        <input type="password" id="profile-old-password" placeholder="原密码" autocomplete="current-password">
-        <input type="password" id="profile-new-password" placeholder="新密码（至少 6 位）" autocomplete="new-password">
-        <input type="password" id="profile-confirm-password" placeholder="确认新密码" autocomplete="new-password">
-        <button type="button" id="profile-save-password" class="btn ghost block">修改密码</button>
-
-        <hr class="profile-divider">
-        <h3 class="profile-section-title">🤖 AI 供应商</h3>
-        <div id="ai-provider-list"></div>
-        <button type="button" id="ai-add-provider" class="btn ghost block">＋ 添加供应商</button>
-        <div class="hint muted" id="ai-key-hint"></div>
-
-        <!-- 供应商编辑表单（隐藏） -->
-        <div id="ai-provider-form" class="hidden" style="margin-top:12px">
-          <input type="text" id="ai-name" placeholder="名称（如：我的 DeepSeek）">
-          <select id="ai-provider">
-            <option value="deepseek">DeepSeek</option>
-            <option value="openai">OpenAI</option>
-            <option value="custom">自定义（OpenAI 兼容）</option>
-          </select>
-          <input type="text" id="ai-base-url" placeholder="接口地址（选预设可留空）">
-          <input type="text" id="ai-models" placeholder="模型列表，逗号分隔（如 deepseek-chat, deepseek-reasoner）">
-          <input type="password" id="ai-api-key" placeholder="API Key（编辑时留空=不修改）" autocomplete="off">
-          <label class="ai-toggle-row">
-            <input type="checkbox" id="ai-enabled" checked>
-            <span>启用</span>
-          </label>
-          <div class="ai-form-btns">
-            <button type="button" id="ai-save-settings" class="btn primary">保存</button>
-            <button type="button" id="ai-cancel-edit" class="btn ghost">取消</button>
+        <!-- 个人中心面板 -->
+        <div id="pm-panel-profile" class="modal-body">
+          <div class="profile-row">
+            <span class="profile-label">用户名</span>
+            <span id="profile-username" class="profile-value"></span>
           </div>
+          <div class="profile-row">
+            <span class="profile-label">注册时间</span>
+            <span id="profile-created" class="profile-value"></span>
+          </div>
+          <div class="profile-row">
+            <span class="profile-label">昵称</span>
+            <input type="text" id="profile-nickname" maxlength="32" placeholder="你的昵称">
+          </div>
+          <button type="button" id="profile-save-nickname" class="btn primary block">保存昵称</button>
+
+          <hr class="profile-divider">
+          <h3 class="profile-section-title">修改密码</h3>
+          <input type="password" id="profile-old-password" placeholder="原密码" autocomplete="current-password">
+          <input type="password" id="profile-new-password" placeholder="新密码（至少 6 位）" autocomplete="new-password">
+          <input type="password" id="profile-confirm-password" placeholder="确认新密码" autocomplete="new-password">
+          <button type="button" id="profile-save-password" class="btn ghost block">修改密码</button>
+        </div>
+
+        <!-- 模型面板（复刻 DSH 设置 → 模型） -->
+        <div id="pm-panel-models" class="modal-body hidden">
+          <div class="hint muted" id="ai-key-hint" style="margin-bottom:10px"></div>
+          <div id="ai-provider-list"></div>
+          <button type="button" id="ai-add-provider" class="btn ghost block">＋ 添加供应商</button>
+          <div id="ai-provider-form" class="hidden" style="margin-top:12px"></div>
         </div>
       </div>
     </div>
