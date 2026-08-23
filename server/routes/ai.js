@@ -4,6 +4,7 @@ import pathMod from 'node:path';
 import { homedir } from 'node:os';
 import { db } from '../db.js';
 import { requireAuth } from '../auth.js';
+import { todayStr, currentMonthStr } from '../util.js';
 import {
   PROVIDER_PRESETS, maskKey, ensureConfigDir, getProviders,
   configPath, configTemplate, loadFileProviders,
@@ -160,7 +161,7 @@ function buildContext(userId, ledgerId) {
     WHERE r.ledger_id = ? ORDER BY r.record_date DESC, r.id DESC LIMIT 50
   `).all(ledgerId);
   return {
-    today: new Date().toISOString().slice(0, 10),
+    today: todayStr(),
     categories: cats.map(function (c) { return c.type + ':' + c.name; }),
     recent_records: records.map(function (r) {
       return (r.record_date || '') + ' ' + (r.type === 'expense' ? '支出' : '收入') + ' ' + (r.amount / 100).toFixed(2) + '元 ' + (r.category_name || '未分类') + (r.note ? ' (' + r.note + ')' : '');
@@ -182,7 +183,15 @@ function runTool(toolName, args) {
     }
     const ledger = db.prepare('SELECT id FROM ledgers WHERE id = ? AND user_id = ?').get(ledgerId, userId);
     if (!ledger) return { error: '账本不存在' };
-    const date = /^\d{4}-\d{2}-\d{2}$/.test(args.date) ? args.date : new Date().toISOString().slice(0, 10);
+    // 日期校验：格式合法且不早于 2000 年、不晚于今天+1 天，否则用本地今天
+    const today = todayStr();
+    let date = today;
+    if (typeof args.date === 'string' && /^\d{4}-\d{2}-\d{2}$/.test(args.date)) {
+      const cand = args.date;
+      const todayNum = Number(today.replace(/-/g, ''));
+      const candNum = Number(cand.replace(/-/g, ''));
+      if (candNum >= 20000101 && candNum <= todayNum + 1) date = cand;
+    }
     const info = db.prepare(`
       INSERT INTO records (ledger_id, user_id, type, category_id, amount, note, record_date)
       VALUES (?, ?, ?, ?, ?, ?, ?)
@@ -190,7 +199,7 @@ function runTool(toolName, args) {
     return { ok: true, record_id: Number(info.lastInsertRowid), type: type, amount_yuan: (amountCents / 100).toFixed(2), category: args.category_name || null, date: date };
   }
   if (toolName === 'query_summary') {
-    const month = args.month || new Date().toISOString().slice(0, 7);
+    const month = args.month || currentMonthStr();
     const rows = db.prepare(`
       SELECT c.name AS category, SUM(r.amount) AS total
       FROM records r LEFT JOIN categories c ON c.id = r.category_id
@@ -200,7 +209,7 @@ function runTool(toolName, args) {
     return rows.map(function (r) { return (r.category || '未分类') + ': ' + (r.total / 100).toFixed(2) + '元'; });
   }
   if (toolName === 'query_month_total') {
-    const month = args.month || new Date().toISOString().slice(0, 7);
+    const month = args.month || currentMonthStr();
     const row = db.prepare(`
       SELECT
         COALESCE(SUM(CASE WHEN type = 'expense' THEN amount END), 0) AS expense,
@@ -247,16 +256,18 @@ router.post('/chat', async (req, res) => {
   const ctx = buildContext(req.user.id, ledgerId);
   const system = [
     '你是「记账本」的 AI 助手，帮助用户记账和查询分析。',
-    '当前日期: ' + ctx.today,
+    '今天（本地日期，唯一正确）: ' + ctx.today,
+    '你所在时区是中国标准时间（UTC+8）。你的训练数据中的日期一律无效。',
     '可用分类（类型:名称）: ' + ctx.categories.join('，'),
     '最近 50 条记录:',
     (ctx.recent_records.length ? ctx.recent_records.join('\n') : '（暂无记录）'),
     '',
     '规则:',
-    '1. 用户描述一笔消费/收入时，用 add_record 工具记账（金额单位元，可小数；date 格式 YYYY-MM-DD，不明确就用今天）。',
-    '2. 用户询问某月消费时，用 query_summary 或 query_month_total 查询后回答。',
-    '3. 分类必须从可用分类中选择，没有合适分类就用「其他」。',
-    '4. 回答用简体中文，简洁自然。',
+    '1. 用户描述一笔消费/收入时，用 add_record 工具记账（金额单位元，可小数）。',
+    '2. 记账的 date 参数：如果用户明确说了日期（如"昨天""前天""3号"），按今天推算；否则必须用今天（' + ctx.today + '）。绝不允许编造其他日期。',
+    '3. 用户询问某月消费时，用 query_summary 或 query_month_total 查询后回答。',
+    '4. 分类必须从可用分类中选择，没有合适分类就用「其他」。',
+    '5. 回答用简体中文，简洁自然。',
   ].join('\n');
 
   const tools = [
