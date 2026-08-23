@@ -12,7 +12,13 @@
 - **账号系统**：注册/登录（scrypt 加密 + Bearer Token），数据按用户隔离
 - **个人中心**：查看资料、修改昵称、修改密码（改密后强制重新登录）
 - **CSV 导出**：按筛选条件一键导出账目为 CSV（Excel 可开，带中文表头）
-- **AI 助手**：对话式智能记账（"今天午饭 25 块"→ 自动入账）、财务问答、消费分析；支持自定义供应商（DeepSeek / OpenAI / 兼容接口）与 API Key，配置可存个人中心或独立配置文件
+- **AI 助手**：对话式智能记账（"今天午饭 25 块"→ 自动入账）、财务问答、消费分析
+  - **多轮上下文**：AI 记住整个对话（可用"它""那个"代词追问，右上角可清空）
+  - **多供应商/多模型**：支持 DeepSeek / OpenAI / 商汤 SenseNova / 任意 OpenAI 兼容接口；每供应商可配多个模型，对话时可随时切换
+  - **配置方式**：个人中心「模型」页管理供应商（可全局公用配置文件 `~/.jizhang/ai-config.json`，也可每用户自己添加）
+  - **时区正确**：AI 记账用服务器本地时间，不因 UTC 差一天
+- **夜间模式**：跟随系统深色模式 + 顶部 🌙/☀️ 手动切换，图表同步适配
+- **用户菜单**：点击昵称弹出分栏菜单（个人中心 / 模型），两面板等高
 - **微信登录**：预留 `POST /api/auth/wx-login`，配置环境变量后即可对接小程序 `wx.login`
 - **手机端适配**：响应式界面，手机浏览器可直接使用（顶栏紧凑、筛选两列、分类大按钮）
 
@@ -133,36 +139,53 @@ npm start            # 启动，默认 http://localhost:3000
 | GET | `/stats/by-category?type=expense` | 分类占比（含 pct） |
 | GET | `/stats/daily` | 每日收支 |
 
-### AI 助手 ai
+### AI 助手 ai（多供应商 / 多模型 / 多轮对话）
 
 | 方法 | 路径 | 说明 |
 |---|---|---|
-| GET | `/ai/settings` | 读取 AI 配置（Key 打码；含来源 source：user=个人中心 / file=配置文件 / default=默认） |
-| PUT | `/ai/settings` | 保存 AI 配置 `{provider, base_url?, model?, api_key?, enabled}`（api_key 留空=不修改） |
+| GET | `/ai/providers` | 供应商列表（含来源 source：user=个人中心 / file=配置文件 / env=环境变量；Key 打码） |
+| POST | `/ai/providers` | 添加供应商 `{name, provider, base_url?, models[], api_key, enabled}` |
+| PUT | `/ai/providers/:id` | 编辑供应商（api_key 留空=不修改） |
+| DELETE | `/ai/providers/:id` | 删除供应商 |
 | POST | `/ai/settings/template` | 在用户目录生成配置文件模板 |
-| POST | `/ai/chat` | AI 对话 `{message, ledger_id?}` → `{reply, tool_results}`（自动记账/查询） |
+| POST | `/ai/chat` | AI 对话 `{message, ledger_id?, provider_id?, model?, messages?}` → `{reply, tool_results}` |
+
+**`/ai/chat` 多轮上下文**：`messages` 可选，传历史对话数组 `[{role:'user'|'assistant', content}]`（最多保留最近 20 条），AI 即能记住之前的对话。前端在发送时带上已渲染的对话历史即可。
 
 **AI 配置模块化**：配置来源按优先级 环境变量 > 个人中心(数据库) > 全局文件 > 内置默认。
 
-- **全局配置文件**：`~/.jizhang/ai-config.json`（Windows: `C:\Users\<用户名>\.jizhang\`；pm2 以 root 运行则为 `/root/.jizhang/`），首次启动自动生成 `ai-config.example.json` 模板。修改后重启生效。
+- **全局配置文件**：`~/.jizhang/ai-config.json`（Windows: `C:\Users\<用户名>\.jizhang\`；pm2 以 root 运行则为 `/root/.jizhang/`），首次启动自动生成 `ai-config.example.json` 模板。**全局配置的所有供应商所有用户都可用**。
 - **环境变量**：`JZ_AI_PROVIDER` / `JZ_AI_BASE_URL` / `JZ_AI_MODEL` / `JZ_AI_API_KEY` / `JZ_AI_ENABLED`（优先级最高，适合部署注入）
-- **个人中心**：网页「个人中心 → AI 设置」保存的配置会覆盖全局文件（每用户独立）
-- 支持供应商：`deepseek`（默认）、`openai`、`custom`（任何 OpenAI 兼容接口，需填 base_url + model）
+- **个人中心 → 模型**：网页上管理供应商（添加/编辑/删除、每个供应商配多个模型），仅当前用户可见；AI 助手页可随时切换模型。
+- 支持供应商：`deepseek`（默认）、`openai`、`custom`（任何 OpenAI 兼容接口，需填 base_url + models）
 
-配置文件示例：
+配置文件示例（多供应商，可放全局公用 Key）：
 
 ```json
 {
-  "provider": "deepseek",
-  "base_url": "",
-  "model": "",
-  "api_key": "sk-在此填入你的APIKey",
-  "enabled": true
+  "providers": [
+    {
+      "name": "SenseNova 商汤",
+      "provider": "custom",
+      "base_url": "https://token.sensenova.cn/v1",
+      "api_key": "sk-在此填入你的APIKey",
+      "models": ["sensenova-6.8-flash-lite", "deepseek-v4-flash", "glm-5.2"],
+      "enabled": true
+    },
+    {
+      "name": "DeepSeek",
+      "provider": "deepseek",
+      "base_url": "",
+      "api_key": "sk-在此填入你的APIKey",
+      "models": ["deepseek-chat", "deepseek-reasoner"],
+      "enabled": true
+    }
+  ]
 }
 ```
 
-> base_url/model 留空时使用预设默认值（deepseek→`https://api.deepseek.com`/`deepseek-chat`；openai→`https://api.openai.com/v1`/`gpt-4o-mini`）。
-> 配置为 JSON 格式错误时，接口会返回带路径和原因的清晰报错，不影响其他功能。
+> base_url 留空时使用预设默认值（deepseek→`https://api.deepseek.com`；openai→`https://api.openai.com/v1`）。
+> AI 记账使用服务器本地时间（非 UTC），避免时区差一天；配置为 JSON 格式错误时返回带路径和原因的清晰报错。
 
 ## 微信小程序对接
 
