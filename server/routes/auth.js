@@ -5,7 +5,7 @@ import { requireAuth } from '../auth.js';
 const router = Router();
 
 function publicUser(u) {
-  return { id: u.id, username: u.username, nickname: u.nickname, current_ledger_id: u.current_ledger_id };
+  return { id: u.id, username: u.username, nickname: u.nickname, current_ledger_id: u.current_ledger_id, created_at: u.created_at };
 }
 
 function buildUserPayload(userId) {
@@ -48,8 +48,33 @@ router.post('/login', (req, res) => {
 
 // 当前用户信息 + 账本列表
 router.get('/me', requireAuth, (req, res) => {
+  const u = db.prepare('SELECT * FROM users WHERE id = ?').get(req.user.id);
   const ledgers = db.prepare('SELECT * FROM ledgers WHERE user_id = ? ORDER BY id').all(req.user.id);
-  res.json({ user: { id: req.user.id, username: req.user.username, nickname: req.user.nickname, current_ledger_id: req.user.currentLedgerId }, ledgers });
+  res.json({ user: publicUser(u), ledgers });
+});
+
+// 修改昵称
+router.put('/me', requireAuth, (req, res) => {
+  const nickname = (req.body && req.body.nickname != null ? String(req.body.nickname) : '').trim();
+  if (!nickname) return res.status(400).json({ error: '昵称不能为空' });
+  if (nickname.length > 32) return res.status(400).json({ error: '昵称不能超过 32 个字符' });
+  db.prepare('UPDATE users SET nickname = ? WHERE id = ?').run(nickname, req.user.id);
+  const u = db.prepare('SELECT * FROM users WHERE id = ?').get(req.user.id);
+  res.json({ user: publicUser(u) });
+});
+
+// 修改密码（修改成功后清除该用户所有会话，强制重新登录）
+router.put('/password', requireAuth, (req, res) => {
+  const oldPassword = (req.body && req.body.old_password) || '';
+  const newPassword = (req.body && req.body.new_password) || '';
+  const u = db.prepare('SELECT * FROM users WHERE id = ?').get(req.user.id);
+  if (!u || !verifyPassword(oldPassword, u.password_hash)) {
+    return res.status(400).json({ error: '原密码不正确' });
+  }
+  if (newPassword.length < 6) return res.status(400).json({ error: '新密码至少 6 位' });
+  db.prepare('UPDATE users SET password_hash = ? WHERE id = ?').run(hashPassword(newPassword), req.user.id);
+  db.prepare('DELETE FROM sessions WHERE user_id = ?').run(req.user.id);
+  res.json({ ok: true });
 });
 
 // 退出登录

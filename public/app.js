@@ -136,6 +136,56 @@
     }
   }
 
+  // ================= 个人中心 =================
+  function openProfile() {
+    var u = state.user || {};
+    $('#profile-username').textContent = u.username || '';
+    $('#profile-created').textContent = u.created_at ? u.created_at.slice(0, 10) : '';
+    $('#profile-nickname').value = u.nickname || '';
+    $('#profile-old-password').value = '';
+    $('#profile-new-password').value = '';
+    $('#profile-confirm-password').value = '';
+    $('#profile-modal').classList.remove('hidden');
+  }
+
+  function closeProfile() {
+    $('#profile-modal').classList.add('hidden');
+  }
+
+  function saveNickname() {
+    var nickname = $('#profile-nickname').value.trim();
+    if (!nickname) { toast('昵称不能为空'); return; }
+    api('/auth/me', { method: 'PUT', body: { nickname: nickname } })
+      .then(function (data) {
+        state.user = data.user;
+        renderHeader();
+        toast('昵称已更新');
+      })
+      .catch(function (e) { toast(e.message); });
+  }
+
+  function changePassword() {
+    var oldPwd = $('#profile-old-password').value;
+    var newPwd = $('#profile-new-password').value;
+    var confirmPwd = $('#profile-confirm-password').value;
+    if (!oldPwd) { toast('请输入原密码'); return; }
+    if (newPwd.length < 6) { toast('新密码至少 6 位'); return; }
+    if (newPwd !== confirmPwd) { toast('两次输入的新密码不一致'); return; }
+    api('/auth/password', { method: 'PUT', body: { old_password: oldPwd, new_password: newPwd } })
+      .then(function () {
+        toast('密码已修改，请重新登录');
+        setTimeout(function () {
+          state.token = '';
+          state.user = null;
+          localStorage.removeItem('jz_token');
+          $('#app-view').classList.add('hidden');
+          $('#login-view').classList.remove('hidden');
+          $('#login-password').value = '';
+        }, 1200);
+      })
+      .catch(function (e) { toast(e.message); });
+  }
+
   function renderHeader() {
     $('#user-nickname').textContent = state.user.nickname || state.user.username;
     var sel = $('#ledger-select');
@@ -765,6 +815,19 @@
       e.preventDefault();
       doRegister($('#reg-username').value.trim(), $('#reg-password').value, $('#reg-nickname').value.trim());
     };
+
+    // 个人中心
+    $('#user-nickname').onclick = openProfile;
+    $('#user-nickname').onkeydown = function (e) {
+      if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); openProfile(); }
+    };
+    $('#profile-close').onclick = closeProfile;
+    $('#profile-modal').onclick = function (e) { if (e.target === this) closeProfile(); };
+    $('#profile-save-nickname').onclick = saveNickname;
+    $('#profile-save-password').onclick = changePassword;
+    $('#profile-nickname').onkeydown = function (e) { if (e.key === 'Enter') saveNickname(); };
+    $('#profile-confirm-password').onkeydown = function (e) { if (e.key === 'Enter') changePassword(); };
+    document.addEventListener('keydown', function (e) { if (e.key === 'Escape') closeProfile(); });
 
     // 退出
     $('#btn-logout').onclick = function () {

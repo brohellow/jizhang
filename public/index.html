@@ -42,10 +42,42 @@
       <select id="ledger-select" title="切换当前账本"></select>
     </div>
     <div class="user-box">
-      <span id="user-nickname"></span>
+      <span id="user-nickname" title="点击进入个人中心" role="button" tabindex="0"></span>
       <button type="button" id="btn-logout" class="btn ghost sm">退出</button>
     </div>
   </header>
+
+  <!-- 个人中心弹窗 -->
+  <div id="profile-modal" class="modal-mask hidden">
+    <div class="modal">
+      <div class="modal-head">
+        <h2>👤 个人中心</h2>
+        <button type="button" id="profile-close" class="modal-x" aria-label="关闭">✕</button>
+      </div>
+      <div class="modal-body">
+        <div class="profile-row">
+          <span class="profile-label">用户名</span>
+          <span id="profile-username" class="profile-value"></span>
+        </div>
+        <div class="profile-row">
+          <span class="profile-label">注册时间</span>
+          <span id="profile-created" class="profile-value"></span>
+        </div>
+        <div class="profile-row">
+          <span class="profile-label">昵称</span>
+          <input type="text" id="profile-nickname" maxlength="32" placeholder="你的昵称">
+        </div>
+        <button type="button" id="profile-save-nickname" class="btn primary block">保存昵称</button>
+
+        <hr class="profile-divider">
+        <h3 class="profile-section-title">修改密码</h3>
+        <input type="password" id="profile-old-password" placeholder="原密码" autocomplete="current-password">
+        <input type="password" id="profile-new-password" placeholder="新密码（至少 6 位）" autocomplete="new-password">
+        <input type="password" id="profile-confirm-password" placeholder="确认新密码" autocomplete="new-password">
+        <button type="button" id="profile-save-password" class="btn ghost block">修改密码</button>
+      </div>
+    </div>
+  </div>
 
   <nav class="tabs">
     <button type="button" data-tab="record" class="active">记账</button>
