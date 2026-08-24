@@ -191,8 +191,11 @@
         method: opts.method || 'GET',
         headers: headers,
         body: opts.body ? JSON.stringify(opts.body) : undefined,
+        signal: opts.signal, // 支持外部中止（AI 停止生成）
       });
     } catch (e) {
+      // 主动中止则直接抛出（不重试）
+      if (e && e.name === 'AbortError') { _barEnd(); throw e; }
       // 幂等请求（GET）自动重试 1 次
       if (!opts.method || opts.method === 'GET') {
         try {
@@ -932,8 +935,15 @@
     }
     var last = $('#ai-chat-list .ai-msg:last-child .ai-bubble');
     var pending = last;
+    // 中止控制器（"停止生成"用）
+    var aiAbort = new AbortController();
+    window._aiAbort = aiAbort;
+    // 显示"停止"按钮
+    var stopBtn = document.getElementById('ai-stop');
+    if (stopBtn) stopBtn.classList.remove('hidden');
     api('/ai/chat', {
       method: 'POST',
+      signal: aiAbort.signal,
       body: { message: text, ledger_id: state.currentLedgerId, provider_id: providerId, model: model, messages: aiHistory },
     })
       .then(function (data) {
@@ -962,6 +972,9 @@
       .finally(function () {
         if (typeof _finalize === 'function') _finalize();
         aiSending = false;
+        window._aiAbort = null;
+        var stopBtn = document.getElementById('ai-stop');
+        if (stopBtn) stopBtn.classList.add('hidden');
         var sendBtn = $('#ai-send');
         if (sendBtn) { sendBtn.disabled = false; sendBtn.textContent = '➤ 发送'; }
       });
@@ -2147,6 +2160,16 @@
 
     // AI 聊天
     $('#ai-send').onclick = sendAiMessage;
+    $('#ai-stop').onclick = function () {
+      if (window._aiAbort) window._aiAbort.abort();
+      var st = $('#ai-stop');
+      if (st) st.classList.add('hidden');
+      var pending2 = document.querySelector('#ai-chat-list .ai-msg:last-child .ai-bubble');
+      if (pending2 && pending2.textContent === '') pending2.textContent = '⏹ 已停止生成';
+      aiSending = false;
+      var sendBtn2 = $('#ai-send');
+      if (sendBtn2) { sendBtn2.disabled = false; sendBtn2.textContent = '➤ 发送'; }
+    };
     $('#ai-clear-chat').onclick = function () {
       if (aiHistory.length === 0) { toast('对话已是空的'); return; }
       confirmDialog('确定清空当前对话吗？').then(function (ok) { if (ok) clearAiChat(); });
