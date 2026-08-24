@@ -164,6 +164,13 @@
     var ru = localStorage.getItem('jz_remember_user');
     var lu = $('#login-username');
     if (ru && lu && !lu.value) lu.value = ru;
+    // 动态问候
+    var sub = document.querySelector('.login-card .sub');
+    if (sub) {
+      var h = new Date().getHours();
+      var greet = h < 6 ? '夜深了 🌙' : h < 12 ? '早上好 ☀️' : h < 18 ? '下午好 🌤️' : '晚上好 🌙';
+      sub.textContent = greet + ' · 多账本 · 预算管理 · 统计报表';
+    }
   }
 
   function doLogin(username, password) {
@@ -1977,6 +1984,16 @@
     };
     // 预算月份
     $('#budget-month').onchange = renderBudget;
+    function shiftBudgetMonth(delta) {
+      var v = $('#budget-month').value;
+      if (!v) v = currentMonthStr();
+      var d = new Date(v + '-01');
+      d.setMonth(d.getMonth() + delta);
+      $('#budget-month').value = d.getFullYear() + '-' + String(d.getMonth() + 1).padStart(2, '0');
+      renderBudget();
+    }
+    $('#budget-month-prev').onclick = function () { shiftBudgetMonth(-1); };
+    $('#budget-month-next').onclick = function () { shiftBudgetMonth(1); };
     $('#budget-form').onsubmit = function (e) {
       e.preventDefault();
       var cat = Number($('#budget-category').value);
