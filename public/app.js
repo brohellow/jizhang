@@ -131,7 +131,14 @@
     });
   }
 
+  var lastToastMsg = '';
+  var lastToastTime = 0;
   function toast(msg) {
+    // 同一错误 2 秒内去重
+    var now = Date.now();
+    if (msg === lastToastMsg && now - lastToastTime < 2000) return;
+    lastToastMsg = msg;
+    lastToastTime = now;
     var el = $('#toast');
     // 识别成功/错误类型，加图标
     var icon = '';
