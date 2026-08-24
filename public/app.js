@@ -801,6 +801,16 @@
     var input = $('#ai-chat-input');
     var text = input.value.trim();
     if (!text) return;
+    // 斜杠指令
+    if (text === '/help') {
+      input.value = '';
+      appendAiMsg('user', '/help');
+      appendAiMsg('bot', '📖 可用指令：<br>· <b>/story</b> — 生成上月账单故事<br>· <b>/blind</b> — 打开本周盲盒<br>· <b>/save</b> — 攒钱模拟器<br>· <b>/help</b> — 显示本帮助<br>也可以直接用自然语言记账或提问哦～');
+      return;
+    }
+    if (text === '/story') { playStory(); input.value = ''; return; }
+    if (text === '/blind') { playBlind(); input.value = ''; return; }
+    if (text === '/save') { playSave(); input.value = ''; return; }
     input.value = '';
     input.style.height = 'auto';
     appendAiMsg('user', text);
