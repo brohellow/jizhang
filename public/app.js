@@ -814,7 +814,14 @@
         updateAiCount();
         if (data.tool_results && data.tool_results.length) {
           var acted = data.tool_results.filter(function (t) { return t.name === 'add_record'; });
-          if (acted.length) { loadRecords(); if (state.user) refreshAll(); }
+          if (acted.length) {
+            loadRecords(); if (state.user) refreshAll();
+            // 视觉反馈：在回复后追加记账确认标记
+            var mark = document.createElement('div');
+            mark.className = 'ai-record-mark';
+            mark.textContent = '✅ 已为你记入 ' + acted.length + ' 笔';
+            pending.appendChild(mark);
+          }
         }
       })
       .catch(function (e) {

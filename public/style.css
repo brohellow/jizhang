@@ -1414,6 +1414,15 @@ main { max-width: 1140px; margin: 0 auto; padding: 20px; }
 .toast.hidden { opacity: 0; transform: translate(-50%, -8px); }
 .toast.toast-ok { border-left: 3px solid var(--income); }
 .toast.toast-err { border-left: 3px solid var(--expense); }
+.ai-record-mark {
+  margin-top: 8px;
+  font-size: 12px;
+  color: var(--income);
+  background: rgba(34,197,94,.1);
+  border-radius: 6px;
+  padding: 4px 10px;
+  display: inline-block;
+}
 .ai-thinking { display: inline-flex; gap: 4px; align-items: center; padding: 2px 0; }
 .ai-thinking i {
   width: 6px; height: 6px;
