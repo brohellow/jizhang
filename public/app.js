@@ -781,7 +781,9 @@
     el.innerHTML = aiTextHtml(text);
   }
 
+  var aiSending = false;
   function sendAiMessage() {
+    if (aiSending) { toast('AI 正在回复，请稍候…'); return; }
     var input = $('#ai-chat-input');
     var text = input.value.trim();
     if (!text) return;
@@ -789,6 +791,7 @@
     input.style.height = 'auto';
     appendAiMsg('user', text);
     appendAiMsg('bot', '<span class="ai-thinking"><i></i><i></i><i></i></span>');
+    aiSending = true;
     var sendBtn0 = $('#ai-send');
     if (sendBtn0) { sendBtn0.disabled = true; sendBtn0.textContent = '…'; }
 
@@ -829,6 +832,7 @@
         pending.innerHTML = aiTextHtml(e.message);
       })
       .finally(function () {
+        aiSending = false;
         var sendBtn = $('#ai-send');
         if (sendBtn) { sendBtn.disabled = false; sendBtn.textContent = '➤ 发送'; }
       });
@@ -1095,7 +1099,7 @@
           '<div class="r-name">' + esc(name) + (r.note ? ' · ' + esc(r.note) : '') + '</div>' +
           '<div class="r-note"><span class="r-dot ' + cls + '"></span>' + (r.type === 'income' ? '收入' : '支出') + '</div>' +
           '</div>' +
-          '<div class="r-amount ' + cls + '">' + (r.type === 'income' ? '+' : '-') + fmt(r.amount) + '</div>' +
+          '<div class="r-amount ' + cls + '" title="点击复制金额" style="cursor:pointer;">' + (r.type === 'income' ? '+' : '-') + fmt(r.amount) + '</div>' +
           '<div class="r-actions">' +
           '<button type="button" class="btn ghost sm" data-act="edit" data-id="' + r.id + '" title="编辑">✏️<span class="txt"> 编辑</span></button>' +
           '<button type="button" class="btn danger sm" data-act="del" data-id="' + r.id + '" title="删除">🗑️<span class="txt"> 删</span></button>' +
@@ -1108,6 +1112,17 @@
           if (btn.dataset.act === 'edit') editRecord(Number(btn.dataset.id));
           else deleteRecord(Number(btn.dataset.id));
         };
+      });
+      box.querySelectorAll('.r-amount').forEach(function (el) {
+        el.addEventListener('click', function () {
+          var raw = el.textContent.replace(/[^0-9.\-]/g, '');
+          var ta = document.createElement('textarea');
+          ta.value = raw;
+          document.body.appendChild(ta);
+          ta.select();
+          try { document.execCommand('copy'); toast('已复制金额 ' + raw); } catch (e) {}
+          document.body.removeChild(ta);
+        });
       });
     }
     var totalPages = Math.max(1, Math.ceil(state.recordTotal / state.recordPageSize));
@@ -1177,7 +1192,11 @@
       p = 1 - Math.pow(1 - p, 3); // easeOutCubic
       el.textContent = fmt(Math.round(from + (target - from) * p));
       if (p < 1) requestAnimationFrame(step);
-      else el.textContent = fmtBig(target);
+      else {
+        el.textContent = fmtBig(target);
+        el.title = '完整金额: ' + fmt(target);
+        el.style.cursor = 'help';
+      }
     }
     requestAnimationFrame(step);
   }
