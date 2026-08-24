@@ -11,6 +11,14 @@ import {
 } from '../ai-config.js';
 
 const router = Router();
+
+// ===== AI 供应商列表缓存（5 秒，配置保存时清空） =====
+const aiProvCache = new Map();
+const AI_PROV_TTL = 5000;
+function aiProvGet(userId) { const h = aiProvCache.get(userId); if (h && Date.now() - h.t < AI_PROV_TTL) return h.data; return null; }
+function aiProvSet(userId, data) { aiProvCache.set(userId, { t: Date.now(), data }); }
+function aiProvInvalidate(userId) { if (userId) aiProvCache.delete(userId); else aiProvCache.clear(); }
+setInterval(function () { const n = Date.now(); for (const [k, v] of aiProvCache) if (n - v.t >= AI_PROV_TTL * 4) aiProvCache.delete(k); }, 60000).unref();
 router.use(requireAuth);
 
 ensureConfigDir();
@@ -36,6 +44,8 @@ function dbProvidersOf(userId) {
 
 // 供应商列表（含来源：user=个人中心 / file=配置文件 / env=环境变量）
 router.get('/providers', (req, res) => {
+  const cached = aiProvGet(req.user.id);
+  if (cached) return res.json(cached);
   let fileError = null;
   let list;
   try {
@@ -51,7 +61,7 @@ router.get('/providers', (req, res) => {
       });
     }
   }
-  res.json({
+  const out = {
     providers: list.map(function (p) {
       return {
         id: p.id,
@@ -67,11 +77,14 @@ router.get('/providers', (req, res) => {
     }),
     config_file: configPath(),
     file_error: fileError,
-  });
+  };
+  aiProvSet(req.user.id, out);
+  res.json(out);
 });
 
 // 添加供应商（存数据库，仅当前用户可见）
 router.post('/providers', (req, res) => {
+  aiProvInvalidate(req.user.id);
   const b = req.body || {};
   const provider = (b.provider || 'deepseek').toString().trim();
   if (!PROVIDER_PRESETS[provider]) return res.status(400).json({ error: '不支持的供应商类型' });
@@ -130,6 +143,7 @@ router.put('/providers/:id', (req, res) => {
 
 // 删除供应商
 router.delete('/providers/:id', (req, res) => {
+  aiProvInvalidate(req.user.id);
   const id = Number(req.params.id);
   const info = db.prepare('DELETE FROM ai_providers WHERE id = ? AND user_id = ?').run(id, req.user.id);
   if (info.changes === 0) return res.status(404).json({ error: '供应商不存在' });
