@@ -32,6 +32,9 @@ router.post('/register', (req, res) => {
     return res.status(400).json({ error: '用户名需为 2-32 位字母、数字、下划线或中文' });
   }
   if (password.length < 6) return res.status(400).json({ error: '密码至少 6 位' });
+  if (password.length > 128) return res.status(400).json({ error: '密码过长' });
+  // 强度校验：至少含数字或字母，避免纯弱密码
+  if (!/[a-zA-Z0-9]/.test(password)) return res.status(400).json({ error: '密码需包含字母或数字' });
   const exists = db.prepare('SELECT id FROM users WHERE username = ?').get(username);
   if (exists) return res.status(409).json({ error: '用户名已存在' });
 
