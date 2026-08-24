@@ -361,6 +361,12 @@ input[type="month"]:hover { border-color: var(--primary); }
 #reg-nickname { padding-left: 34px; background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='16' height='16' viewBox='0 0 24 24' fill='none' stroke='%238b96ab' stroke-width='2'%3E%3Cpath d='M12 20h9'/%3E%3Cpath d='M16.5 3.5a2.121 2.121 0 0 1 3 3L7 19l-4 1 1-4L16.5 3.5z'/%3E%3C/svg%3E"); background-repeat: no-repeat; background-position: 10px center; }
 .login-card .btn { margin-top: 4px; padding: 10px; }
 .hint { margin-top: 12px; text-align: center; font-size: 13px; color: var(--expense); min-height: 18px; }
+@keyframes shake {
+  0%, 100% { transform: translateX(0); }
+  20%, 60% { transform: translateX(-8px); }
+  40%, 80% { transform: translateX(8px); }
+}
+.login-card.shake { animation: shake .45s ease; }
 .hint.muted { color: var(--muted); }
 .hint.demo-tip {
   background: var(--primary-soft);
@@ -1288,7 +1294,9 @@ main { max-width: 1140px; margin: 0 auto; padding: 20px; }
 .ai-model-bar select { width: auto; flex: 1; min-width: 0; font-weight: 500; cursor: pointer; text-overflow: ellipsis; white-space: nowrap; overflow: hidden; }
 .ai-model-bar select option { text-overflow: ellipsis; }
 .ai-model-bar select:hover { border-color: var(--primary); }
-#ai-send { min-width: 76px; letter-spacing: 1px; }
+#ai-send { min-width: 76px; letter-spacing: 1px; transition: box-shadow .2s, transform .15s; }
+#ai-send:hover:not(:disabled) { box-shadow: 0 0 18px rgba(79,125,249,.5); transform: translateY(-1px); }
+#ai-send:active:not(:disabled) { transform: scale(.96); }
 .ai-model-bar .sm { flex-shrink: 0; }
 #ai-clear-chat { flex-shrink: 0; }
 

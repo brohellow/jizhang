@@ -187,7 +187,16 @@
           bootApp();
         }
       })
-      .catch(function (e) { $('#login-hint').textContent = e.message; });
+      .catch(function (e) {
+        $('#login-hint').textContent = e.message;
+        var card = $('#login-view .login-card');
+        if (card) {
+          card.classList.remove('shake');
+          void card.offsetWidth;
+          card.classList.add('shake');
+          setTimeout(function () { card.classList.remove('shake'); }, 500);
+        }
+      });
   }
 
   function doRegister(username, password, nickname) {
@@ -875,6 +884,10 @@
       btn.onclick = function () {
         state.selectedCategoryId = (state.selectedCategoryId === c.id) ? null : c.id;
         renderCategoryPicker();
+        // 选中后聚焦备注（快速记账）
+        if (state.selectedCategoryId) {
+          setTimeout(function () { var n = $('#record-note'); if (n) n.focus(); }, 50);
+        }
       };
       box.appendChild(btn);
     });
