@@ -50,10 +50,13 @@ router.get('/summary', (req, res) => {
   const ck = 'summary:' + ledgerId + ':' + month;
   const cached = cacheGet(ck);
   if (cached) return res.json(cached);
+  // 范围查询（走 idx_records_lookup 索引，substr 无法用索引）
+  const monthStart = month + '-01';
+  const monthEnd = month + '-31';
   const agg = db.prepare(`
     SELECT type, COALESCE(SUM(amount), 0) AS s, COUNT(*) AS c
-    FROM records WHERE ledger_id = ? AND substr(record_date, 1, 7) = ? GROUP BY type
-  `).all(ledgerId, month);
+    FROM records WHERE ledger_id = ? AND record_date >= ? AND record_date <= ? GROUP BY type
+  `).all(ledgerId, monthStart, monthEnd);
   let income = 0, expense = 0, count = 0;
   agg.forEach(function (r) {
     if (r.type === 'income') income = r.s; else expense = r.s;
@@ -109,12 +112,14 @@ router.get('/by-category', (req, res) => {
   const ck = 'bycat:' + ledgerId + ':' + month + ':' + type;
   const cached = cacheGet(ck);
   if (cached) return res.json(cached);
+  const monthStart = month + '-01';
+  const monthEnd = month + '-31';
   const rows = db.prepare(`
     SELECT c.id AS category_id, c.name AS category_name, c.icon AS category_icon, SUM(r.amount) AS amount
     FROM records r LEFT JOIN categories c ON c.id = r.category_id
-    WHERE r.ledger_id = ? AND r.type = ? AND substr(r.record_date, 1, 7) = ?
+    WHERE r.ledger_id = ? AND r.type = ? AND r.record_date >= ? AND r.record_date <= ?
     GROUP BY r.category_id ORDER BY amount DESC
-  `).all(ledgerId, type, month);
+  `).all(ledgerId, type, monthStart, monthEnd);
   const total = rows.reduce(function (s, r) { return s + r.amount; }, 0);
   const out = rows.map(function (r) {
     return {
@@ -137,15 +142,17 @@ router.get('/daily', (req, res) => {
   const ck = 'daily:' + ledgerId + ':' + month;
   const cached = cacheGet(ck);
   if (cached) return res.json(cached);
+  const monthStart = month + '-01';
+  const monthEnd = month + '-31';
   const y = Number(month.slice(0, 4));
   const m = Number(month.slice(5, 7));
   const days = new Date(y, m, 0).getDate();
   const agg = {};
   db.prepare(`
     SELECT record_date, type, SUM(amount) AS s
-    FROM records WHERE ledger_id = ? AND substr(record_date, 1, 7) = ?
+    FROM records WHERE ledger_id = ? AND record_date >= ? AND record_date <= ?
     GROUP BY record_date, type
-  `).all(ledgerId, month).forEach(function (r) {
+  `).all(ledgerId, monthStart, monthEnd).forEach(function (r) {
     if (!agg[r.record_date]) agg[r.record_date] = { income: 0, expense: 0 };
     if (r.type === 'income') agg[r.record_date].income = r.s; else agg[r.record_date].expense = r.s;
   });
@@ -164,38 +171,40 @@ router.get('/story-data', (req, res) => {
   const ledgerId = resolveLedger(req, res);
   if (!ledgerId) return;
   const month = monthParam(req);
+  const monthStart = month + '-01';
+  const monthEnd = month + '-31';
   const y = Number(month.slice(0, 4));
   const m = Number(month.slice(5, 7));
   const daysInMonth = new Date(y, m, 0).getDate();
 
-  const agg = db.prepare('SELECT type, COALESCE(SUM(amount),0) s, COUNT(*) c FROM records WHERE ledger_id = ? AND substr(record_date,1,7) = ? GROUP BY type')
-    .all(ledgerId, month);
+  const agg = db.prepare('SELECT type, COALESCE(SUM(amount),0) s, COUNT(*) c FROM records WHERE ledger_id = ? AND record_date >= ? AND record_date <= ? GROUP BY type')
+    .all(ledgerId, monthStart, monthEnd);
   let income = 0, expense = 0, count = 0;
   agg.forEach(r2 => { if (r2.type === 'income') income = r2.s; else expense = r2.s; count += r2.c; });
 
   const catRows = db.prepare(`
     SELECT COALESCE(c.name, '其他') name, COALESCE(c.icon,'📦') icon, SUM(r.amount) amount, COUNT(*) c
     FROM records r LEFT JOIN categories c ON c.id = r.category_id
-    WHERE r.ledger_id = ? AND r.type = 'expense' AND substr(r.record_date,1,7) = ?
+    WHERE r.ledger_id = ? AND r.type = 'expense' AND r.record_date >= ? AND r.record_date <= ?
     GROUP BY r.category_id ORDER BY amount DESC LIMIT 6
-  `).all(ledgerId, month);
+  `).all(ledgerId, monthStart, monthEnd);
 
   const daily = db.prepare(`
     SELECT record_date, SUM(amount) s FROM records
-    WHERE ledger_id = ? AND type = 'expense' AND substr(record_date,1,7) = ?
+    WHERE ledger_id = ? AND type = 'expense' AND record_date >= ? AND record_date <= ?
     GROUP BY record_date ORDER BY s DESC LIMIT 1
-  `).get(ledgerId, month);
+  `).get(ledgerId, monthStart, monthEnd);
 
   const most = db.prepare(`
     SELECT r.record_date, r.amount, r.note, COALESCE(c.name,'其他') cname, COALESCE(c.icon,'📦') icon
     FROM records r LEFT JOIN categories c ON c.id = r.category_id
-    WHERE r.ledger_id = ? AND r.type = 'expense' AND substr(r.record_date,1,7) = ?
+    WHERE r.ledger_id = ? AND r.type = 'expense' AND r.record_date >= ? AND r.record_date <= ?
     ORDER BY r.amount DESC LIMIT 1
-  `).get(ledgerId, month);
+  `).get(ledgerId, monthStart, monthEnd);
 
   const avgDaily = daysInMonth > 0 ? Math.round(expense / daysInMonth) : 0;
-  const spendDays = db.prepare('SELECT COUNT(DISTINCT record_date) c FROM records WHERE ledger_id = ? AND type = ? AND substr(record_date,1,7) = ?')
-    .get(ledgerId, 'expense', month).c;
+  const spendDays = db.prepare('SELECT COUNT(DISTINCT record_date) c FROM records WHERE ledger_id = ? AND type = ? AND record_date >= ? AND record_date <= ?')
+    .get(ledgerId, 'expense', monthStart, monthEnd).c;
 
   res.json({
     month,
