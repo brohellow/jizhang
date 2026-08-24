@@ -641,6 +641,19 @@
     // 时间戳 + 双击复制
     var now = new Date();
     bubble.title = '双击复制 · ' + now.toLocaleTimeString();
+    // 长回复折叠（>600 字符，bot 消息）
+    if (role === 'bot' && text.length > 600) {
+      bubble.classList.add('ai-long');
+      var toggle = document.createElement('div');
+      toggle.className = 'ai-more';
+      toggle.textContent = '展开全文 ↓';
+      toggle.onclick = function (e) {
+        e.stopPropagation();
+        bubble.classList.toggle('ai-expanded');
+        toggle.textContent = bubble.classList.contains('ai-expanded') ? '收起 ↑' : '展开全文 ↓';
+      };
+      bubble.appendChild(toggle);
+    }
     bubble.addEventListener('dblclick', function () {
       var raw = text.replace(/<[^>]*>/g, '');
       var ta = document.createElement('textarea');
