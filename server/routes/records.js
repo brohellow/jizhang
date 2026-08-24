@@ -45,6 +45,8 @@ function validateRecord(b, userId, res) {
     return null;
   }
   const date = DATE_RE.test(b.record_date || '') ? b.record_date : todayStr();
+  // 备注长度限制（防异常大数据）
+  const note = String(b.note || '').slice(0, 200);
   let categoryId = null;
   if (b.category_id) {
     const cat = db.prepare('SELECT id, type FROM categories WHERE id = ? AND user_id = ?').get(Number(b.category_id), userId);
@@ -58,7 +60,7 @@ function validateRecord(b, userId, res) {
     }
     categoryId = cat.id;
   }
-  return { ledgerId, type, cents: yuanToCents(amount), categoryId, date, note: String(b.note || '').trim() };
+  return { ledgerId, type, cents: yuanToCents(amount), categoryId, date, note: note.trim() };
 }
 
 function rowWithCategory(id) {
