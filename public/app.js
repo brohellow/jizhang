@@ -1432,6 +1432,22 @@
     }
     return echarts.init(el, null, { renderer: 'canvas' });
   }
+  // 空闲时预加载 echarts（提升进统计页速度）
+  function idlePreload() {
+    try {
+      if (typeof requestIdleCallback === 'function') {
+        requestIdleCallback(function () {
+          var s = document.createElement('script');
+          s.src = 'vendor/echarts.min.js';
+          s.async = true;
+          s.onload = function () { echartsLoaded = true; };
+          document.head.appendChild(s);
+        }, { timeout: 5000 });
+      }
+    } catch (e) {}
+  }
+  setTimeout(idlePreload, 3000); // 页面加载 3 秒后空闲预载
+
   // 懒加载 echarts（首次进统计页时）
   function ensureEcharts() {
     return new Promise(function (resolve) {
