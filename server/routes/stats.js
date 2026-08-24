@@ -20,6 +20,13 @@ function cacheSet(key, data) {
 function cacheInvalidate() {
   statsCache.clear();
 }
+// 定期清理过期缓存（防内存增长）
+setInterval(function () {
+  const now = Date.now();
+  for (const [k, v] of statsCache) {
+    if (now - v.t >= CACHE_TTL * 2) statsCache.delete(k);
+  }
+}, 60000).unref();
 export { cacheInvalidate };
 
 const MONTH_RE = /^\d{4}-\d{2}$/;

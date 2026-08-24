@@ -19,7 +19,17 @@
   };
 
   // ================= 工具 =================
-  function $(sel) { return document.querySelector(sel); }
+  var _elCache = {};
+  function $(sel) {
+    // 轻量缓存：仅缓存查询结果（元素被替换时 key 不带 cache 标记的不缓存）
+    var cached = _elCache[sel];
+    if (cached && document.body.contains(cached)) return cached;
+    var el = document.querySelector(sel);
+    if (el) _elCache[sel] = el;
+    return el;
+  }
+  // 手动清除缓存（DOM 大改后调用）
+  function clearElCache() { _elCache = {}; }
 
   function esc(s) {
     return String(s == null ? '' : s).replace(/[&<>"']/g, function (c) {
