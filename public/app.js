@@ -1233,6 +1233,9 @@
   var trendView = 'bar'; // bar | line
   function renderStats() {
     var month = $('#stats-month').value || currentMonthStr();
+    // 非本月时显示"本月"按钮
+    var todayBtn = $('#stats-month-today');
+    if (todayBtn) todayBtn.classList.toggle('hidden', month === currentMonthStr());
     // 加载占位
     var trendEl = $('#chart-trend');
     if (trendEl && !trendEl.innerHTML) trendEl.innerHTML = '<div class="empty">加载中…</div>';
@@ -2084,6 +2087,10 @@
     }
     $('#stats-month-prev').onclick = function () { shiftMonth(-1); };
     $('#stats-month-next').onclick = function () { shiftMonth(1); };
+    $('#stats-month-today').onclick = function () {
+      $('#stats-month').value = currentMonthStr();
+      renderStats();
+    };
     $('#trend-bar').onclick = function () {
       trendView = 'bar';
       $('#trend-bar').classList.add('active');
