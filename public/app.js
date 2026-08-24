@@ -236,6 +236,12 @@
   async function bootApp() {
     hideSplash();
     setFooter();
+    // 首次进入欢迎
+    var greeted = sessionStorage.getItem('jz_greeted');
+    if (!greeted) {
+      sessionStorage.setItem('jz_greeted', '1');
+      setTimeout(function () { toast('👋 欢迎回来，' + ((state.user && (state.user.nickname || state.user.username)) || '朋友') + '！'); }, 600);
+    }
     try {
       var me = await api('/auth/me');
       state.user = me.user;
