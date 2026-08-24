@@ -1176,6 +1176,26 @@
       animateNum($('#stat-expense'), summary.expense);
       animateNum($('#stat-net'), summary.net);
       $('#stat-count').textContent = summary.record_count + ' 笔';
+      // 环比（与上月对比）
+      function deltaPct(cur, prev) {
+        if (!prev || prev <= 0) return null;
+        return Math.round((cur - prev) / prev * 100);
+      }
+      var prevM = monthly.length >= 2 ? monthly[monthly.length - 2] : null;
+      var dIn = deltaPct(summary.income, prevM ? prevM.income : 0);
+      var dOut = deltaPct(summary.expense, prevM ? prevM.expense : 0);
+      function deltaHtml(d, upIsBad) {
+        if (d === null) return '';
+        var up = d >= 0;
+        var good = upIsBad ? !up : up;
+        var color = good ? 'var(--income)' : 'var(--expense)';
+        var arrow = up ? '▲' : '▼';
+        return ' <span style="font-size:11px;color:' + color + '">' + arrow + ' ' + Math.abs(d) + '%</span>';
+      }
+      var inHint = $('#stat-income').parentNode.querySelector('.hint');
+      var outHint = $('#stat-expense').parentNode.querySelector('.hint');
+      if (inHint) inHint.innerHTML = '环比上月' + deltaHtml(dIn, false);
+      if (outHint) outHint.innerHTML = '环比上月' + deltaHtml(dOut, true);
       var budgetEl = $('#stat-budget');
       if (summary.budget) {
         var pct = summary.budget_pct || 0;
@@ -1780,6 +1800,17 @@
     $('#ai-play-story').onclick = playStory;
     $('#ai-play-blind').onclick = playBlind;
     $('#ai-play-save').onclick = playSave;
+    // 模型状态点（选中模型时亮起）
+    var ms = $('#ai-model-status');
+    var mvSel = $('#ai-model-select');
+    if (ms && mvSel) {
+      var upd = function () {
+        if (mvSel.value) { ms.textContent = '就绪'; ms.title = '当前模型: ' + mvSel.value; }
+        else { ms.textContent = '未配置'; ms.title = '请先在个人中心配置模型'; ms.style.color = 'var(--expense)'; }
+      };
+      mvSel.addEventListener('change', upd);
+      setTimeout(upd, 800);
+    }
     var aiInput = $('#ai-chat-input');
     var aiAutoGrow = function () {
       aiInput.style.height = 'auto';

@@ -1291,6 +1291,24 @@ main { max-width: 1140px; margin: 0 auto; padding: 20px; }
 /* 模型切换栏 */
 .ai-model-bar { display: flex; align-items: center; gap: 8px; margin-bottom: 10px; }
 .ai-play-bar { display: flex; gap: 8px; flex-wrap: wrap; margin-bottom: 10px; }
+.ai-model-status {
+  font-size: 11px;
+  color: var(--income);
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+}
+.ai-model-status::before {
+  content: '';
+  width: 6px; height: 6px;
+  border-radius: 50%;
+  background: var(--income);
+  animation: pulseDot 2s ease infinite;
+}
+@keyframes pulseDot {
+  0%, 100% { opacity: 1; }
+  50% { opacity: .4; }
+}
 .ai-model-bar select { width: auto; flex: 1; min-width: 0; font-weight: 500; cursor: pointer; text-overflow: ellipsis; white-space: nowrap; overflow: hidden; }
 .ai-model-bar select option { text-overflow: ellipsis; }
 .ai-model-bar select:hover { border-color: var(--primary); }
