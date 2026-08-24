@@ -160,6 +160,10 @@
   function showLogin() {
     $('#app-view').classList.add('hidden');
     $('#login-view').classList.remove('hidden');
+    // 预填上次用户名
+    var ru = localStorage.getItem('jz_remember_user');
+    var lu = $('#login-username');
+    if (ru && lu && !lu.value) lu.value = ru;
   }
 
   function doLogin(username, password) {
@@ -171,6 +175,7 @@
         if (data.user) {
           localStorage.setItem('jz_username', data.user.username || '');
           localStorage.setItem('jz_nickname', data.user.nickname || '');
+          localStorage.setItem('jz_remember_user', data.user.username || '');
         }
         // 登录成功过渡：卡片淡出 → 主界面淡入
         var lv = $('#login-view');
@@ -194,6 +199,7 @@
         if (data.user) {
           localStorage.setItem('jz_username', data.user.username || '');
           localStorage.setItem('jz_nickname', data.user.nickname || '');
+          localStorage.setItem('jz_remember_user', data.user.username || '');
         }
         bootApp();
       })
@@ -934,7 +940,7 @@
       ? api('/records/' + state.editingRecordId, { method: 'PUT', body: body })
       : api('/records', { method: 'POST', body: body });
     p.then(function () {
-      toast(isEdit ? '已保存修改' : '已记一笔');
+      toast(isEdit ? '已保存修改' : '已记一笔 ✅');
       resetRecordForm();
       loadRecords();
     }).catch(function (err) {
@@ -980,6 +986,19 @@
     api('/records?' + params.join('&')).then(function (data) {
       state.recordTotal = data.total;
       state.lastItems = data.items;
+      // 月份小计（仅当月筛选时）
+      if (month) {
+        api('/stats/summary?ledger_id=' + state.currentLedgerId + '&month=' + month).then(function (s) {
+          var box = $('#record-list');
+          if (!box) return;
+          var old = box.querySelector('.record-month-total');
+          if (old) old.remove();
+          var el = document.createElement('div');
+          el.className = 'record-month-total';
+          el.textContent = '📅 本月支出 ' + fmt(s.expense) + ' · 收入 ' + fmt(s.income) + ' · 结余 ' + fmt(s.net);
+          box.insertBefore(el, box.firstChild);
+        }).catch(function () {});
+      }
       renderRecordList();
     }).catch(function (e) { toast(e.message); });
   }
