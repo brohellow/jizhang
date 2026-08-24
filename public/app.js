@@ -1241,6 +1241,20 @@
         animateNum($('#stat-net'), summary.net);
         $('#stat-count').textContent = summary.record_count + ' 笔';
       }
+      // 结余卡点击循环显示（结余→支出→收入）
+      var netEl = $('#stat-net');
+      if (netEl && !netEl.dataset.bound) {
+        netEl.dataset.bound = '1';
+        var mode = 'net';
+        netEl.title = '点击切换：结余 / 支出 / 收入';
+        netEl.style.cursor = 'pointer';
+        netEl.addEventListener('click', function () {
+          mode = mode === 'net' ? 'expense' : mode === 'expense' ? 'income' : 'net';
+          if (mode === 'net') { netEl.textContent = fmtBig(summary.net); netEl.className = 'value'; }
+          else if (mode === 'expense') { netEl.textContent = fmtBig(summary.expense); netEl.className = 'value expense'; }
+          else { netEl.textContent = fmtBig(summary.income); netEl.className = 'value income'; }
+        });
+      }
       // 环比（与上月对比）
       function deltaPct(cur, prev) {
         if (!prev || prev <= 0) return null;
