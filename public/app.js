@@ -1423,6 +1423,22 @@
           emphasis: { itemStyle: { shadowBlur: 8, shadowColor: 'rgba(244,101,107,.35)' } } },
       ],
     }, true);
+    // 点击柱子 → 切到记账页并筛选该日
+    var c = state.charts.daily;
+    if (c) {
+      c.off('click');
+      c.on('click', function (params) {
+        if (params && params.dataIndex != null) {
+          var day = Number(String(daily[params.dataIndex].day).slice(8));
+          var month = daily[params.dataIndex].day.slice(0, 7);
+          $('#filter-month').value = month;
+          $('#filter-keyword').value = month + '-' + String(day).padStart(2, '0');
+          state.recordPage = 1;
+          loadRecords();
+          switchTab('record');
+        }
+      });
+    }
   }
 
   // ================= 预算 =================
@@ -1878,6 +1894,20 @@
       setTimeout(upd, 800);
     }
     var aiInput = $('#ai-chat-input');
+    // placeholder 轮播提示
+    var aiHints = [
+      '说点什么…（如：昨天打车花了 18 元）',
+      '试试：帮我分析这周的消费',
+      '试试：上个月哪个分类花最多？',
+      '试试：今天午饭花了 25 块',
+    ];
+    var hintIdx = 0;
+    setInterval(function () {
+      if (aiInput && !aiInput.value && !aiSending) {
+        hintIdx = (hintIdx + 1) % aiHints.length;
+        aiInput.placeholder = aiHints[hintIdx];
+      }
+    }, 6000);
     var aiAutoGrow = function () {
       aiInput.style.height = 'auto';
       aiInput.style.height = Math.min(120, aiInput.scrollHeight) + 'px';
