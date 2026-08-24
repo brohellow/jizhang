@@ -197,7 +197,11 @@ function stripTags(html) {
 
 async function webSearch(query) {
   if (!query || !String(query).trim()) return { error: '搜索词为空' };
-  const q = encodeURIComponent(String(query).trim());
+  // 同词 10 分钟缓存（减少外部请求）
+  const qRaw = String(query).trim();
+  const cachedSearch = searchCache.get(qRaw);
+  if (cachedSearch && Date.now() - cachedSearch.t < 10 * 60 * 1000) return cachedSearch.data;
+  const q = encodeURIComponent(qRaw);
   const url = 'https://cn.bing.com/search?q=' + q + '&mkt=zh-CN';
   try {
     const resp = await fetch(url, {
@@ -231,7 +235,9 @@ async function webSearch(query) {
       results.push({ title: title, url: url, snippet: snippet });
     });
     if (!results.length) return { note: '未找到相关结果' };
-    return { results: results };
+    const searchOut = { results: results };
+    searchCache.set(qRaw, { t: Date.now(), data: searchOut });
+    return searchOut;
   } catch (err) {
     return { error: '搜索出错: ' + err.message };
   }
@@ -240,6 +246,7 @@ async function webSearch(query) {
 // ===== 汇率查询（免费 API，6 小时缓存减少外部依赖） =====
 const fxCache = new Map();
 const FX_TTL = 6 * 60 * 60 * 1000;
+const searchCache = new Map(); // 联网搜索缓存（10 分钟）
 async function getExchangeRate(base) {
   const baseCurrency = String(base || 'CNY').toUpperCase().slice(0, 3);
   const cachedFx = fxCache.get(baseCurrency);
