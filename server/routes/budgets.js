@@ -6,6 +6,14 @@ import { currentMonthStr, yuanToCents } from '../util.js';
 const router = Router();
 router.use(requireAuth);
 
+// ===== 预算接口缓存（5 秒，写操作清空） =====
+const budCache = new Map();
+const BUD_CACHE_TTL = 5000;
+function budGet(key) { const h = budCache.get(key); if (h && Date.now() - h.t < BUD_CACHE_TTL) return h.data; return null; }
+function budSet(key, data) { budCache.set(key, { t: Date.now(), data }); }
+function budInvalidate() { budCache.clear(); }
+setInterval(function () { const n = Date.now(); for (const [k, v] of budCache) if (n - v.t >= BUD_CACHE_TTL * 2) budCache.delete(k); }, 60000).unref();
+
 const MONTH_RE = /^\d{4}-\d{2}$/;
 
 function resolveLedger(req, res) {
@@ -28,10 +36,13 @@ router.get('/', (req, res) => {
   if (!ledgerId) return;
   const month = MONTH_RE.test(req.query.month || '') ? req.query.month : currentMonthStr();
 
+  const ck = 'bud:' + ledgerId + ':' + month;
+  const cached = budGet(ck);
+  if (cached) return res.json(cached);
   const totalExpense = db.prepare(`
     SELECT COALESCE(SUM(amount), 0) AS s FROM records
-    WHERE ledger_id = ? AND type = 'expense' AND substr(record_date, 1, 7) = ?
-  `).get(ledgerId, month).s;
+    WHERE ledger_id = ? AND type = 'expense' AND record_date >= ? AND record_date <= ?
+  `).get(ledgerId, month + '-01', month + '-31').s;
 
   const rows = db.prepare(`
     SELECT b.id, b.month, b.category_id, b.amount, c.name AS category_name, c.icon AS category_icon
@@ -48,8 +59,8 @@ router.get('/', (req, res) => {
     } else {
       const spent = db.prepare(`
         SELECT COALESCE(SUM(amount), 0) AS s FROM records
-        WHERE ledger_id = ? AND category_id = ? AND type = 'expense' AND substr(record_date, 1, 7) = ?
-      `).get(ledgerId, r.category_id, month).s;
+        WHERE ledger_id = ? AND category_id = ? AND type = 'expense' AND record_date >= ? AND record_date <= ?
+      `).get(ledgerId, r.category_id, month + '-01', month + '-31').s;
       items.push({
         id: r.id,
         category_id: r.category_id,
@@ -61,11 +72,14 @@ router.get('/', (req, res) => {
       });
     }
   });
-  res.json({ month, overall, items });
+  const out = { month, overall, items };
+  budSet(ck, out);
+  res.json(out);
 });
 
 // 设置/更新预算（upsert）：overall 传 category_id 为空，分类预算传 category_id
 router.put('/', (req, res) => {
+  budInvalidate();
   const b = req.body || {};
   const ledgerId = Number(b.ledger_id || null) || null;
   if (!ledgerId) return res.status(400).json({ error: '请先创建账本' });
@@ -98,6 +112,7 @@ router.put('/', (req, res) => {
 
 // 删除预算
 router.delete('/:id', (req, res) => {
+  budInvalidate();
   const id = Number(req.params.id);
   const row = db.prepare('SELECT * FROM budgets WHERE id = ? AND user_id = ?').get(id, req.user.id);
   if (!row) return res.status(404).json({ error: '预算不存在' });
