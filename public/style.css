@@ -1464,6 +1464,10 @@ main { max-width: 1140px; margin: 0 auto; padding: 20px; }
 ::-webkit-scrollbar-thumb:hover { background: var(--muted); }
 :root[data-theme="dark"] ::-webkit-scrollbar-thumb { background: #3a4457; }
 :root[data-theme="dark"] ::-webkit-scrollbar-thumb:hover { background: #4a5670; }
+:root[data-theme="dark"] .card { border-color: #2a3142; }
+:root[data-theme="dark"] input, :root[data-theme="dark"] select { background: #1a1f2b; border-color: #333c4e; }
+:root[data-theme="dark"] .ai-bubble { background: #232a3a; }
+:root[data-theme="dark"] .btn.ghost { background: #262d3d; border-color: #333c4e; }
 
 /* --- 全局动效降级：系统减少动态效果 或 触摸低性能 --- */
 @media (prefers-reduced-motion: reduce) {

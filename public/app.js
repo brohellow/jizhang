@@ -1297,6 +1297,8 @@
         emphasis: { scaleSize: 6, itemStyle: { shadowBlur: 14, shadowColor: 'rgba(0,0,0,.25)' } },
         animationType: 'scale',
         animationEasing: 'elasticOut',
+        animationDuration: 900,
+        startAngle: 90,
       }],
     }, true);
   }
