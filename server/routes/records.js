@@ -1,6 +1,14 @@
 import { Router } from 'express';
 import { db } from '../db.js';
 import { cacheInvalidate } from './stats.js';
+
+// ===== 记录列表缓存（3 秒，写操作清空） =====
+const recCache = new Map();
+const REC_CACHE_TTL = 3000;
+function recGet(key) { const h = recCache.get(key); if (h && Date.now() - h.t < REC_CACHE_TTL) return h.data; return null; }
+function recSet(key, data) { recCache.set(key, { t: Date.now(), data }); }
+function recInvalidate() { recCache.clear(); }
+setInterval(function () { const n = Date.now(); for (const [k, v] of recCache) if (n - v.t >= REC_CACHE_TTL * 4) recCache.delete(k); }, 60000).unref();
 import { requireAuth } from '../auth.js';
 import { todayStr, yuanToCents } from '../util.js';
 
@@ -151,20 +159,26 @@ router.get('/', (req, res) => {
     params.push('%' + kw + '%');
   }
   const whereSql = 'WHERE ' + where.join(' AND ');
-  const total = db.prepare('SELECT COUNT(*) AS c FROM records r ' + whereSql).get(...params).c;
   const page = Math.max(1, parseInt(req.query.page, 10) || 1);
   const pageSize = Math.min(100, Math.max(1, parseInt(req.query.pageSize, 10) || 20));
+  const ck = 'rec:' + req.user.id + ':' + whereSql + ':' + params.join(',') + ':' + page + ':' + pageSize;
+  const cached = recGet(ck);
+  if (cached) return res.json(cached);
+  const total = db.prepare('SELECT COUNT(*) AS c FROM records r ' + whereSql).get(...params).c;
   const items = db.prepare(`
     SELECT r.*, c.name AS category_name, c.icon AS category_icon
     FROM records r LEFT JOIN categories c ON c.id = r.category_id
     ` + whereSql + ' ORDER BY r.record_date DESC, r.id DESC LIMIT ? OFFSET ?')
     .all(...params, pageSize, (page - 1) * pageSize);
-  res.json({ total, page, pageSize, items });
+  const out = { total, page, pageSize, items };
+  recSet(ck, out);
+  res.json(out);
 });
 
 // 新增记录
 router.post('/', (req, res) => {
   cacheInvalidate();
+  recInvalidate();
   const v = validateRecord(req.body || {}, req.user.id, res);
   if (!v) return;
   const info = db.prepare(`
@@ -177,6 +191,7 @@ router.post('/', (req, res) => {
 // 编辑记录
 router.put('/:id', (req, res) => {
   cacheInvalidate();
+  recInvalidate();
   const id = Number(req.params.id);
   const old = db.prepare('SELECT * FROM records WHERE id = ? AND user_id = ?').get(id, req.user.id);
   if (!old) return res.status(404).json({ error: '记录不存在' });
@@ -192,6 +207,7 @@ router.put('/:id', (req, res) => {
 // 删除记录
 router.delete('/:id', (req, res) => {
   cacheInvalidate();
+  recInvalidate();
   const id = Number(req.params.id);
   const old = db.prepare('SELECT * FROM records WHERE id = ? AND user_id = ?').get(id, req.user.id);
   if (!old) return res.status(404).json({ error: '记录不存在' });
