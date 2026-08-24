@@ -42,6 +42,15 @@ main { max-width:900px; margin:24px auto; padding:0 16px; }
 .muted { color:var(--muted); font-size:13px; }
 .mode-select { padding:8px 12px; border:1px solid var(--border); border-radius:10px; font-size:14px; margin-right:10px; }
 .tip { background:#fff7ed; border:1px solid #fed7aa; color:#9a3412; border-radius:10px; padding:12px 14px; font-size:13px; margin-top:14px; }
+@media (max-width: 640px) {
+  main { padding: 0 10px; margin: 14px auto; }
+  .card { padding: 16px; }
+  .rooms th:nth-child(3), .rooms td:nth-child(3) { display: none; } /* 隐藏模式列 */
+  .rooms th:nth-child(4), .rooms td:nth-child(4) { display: none; } /* 隐藏状态列 */
+  .conn-box { font-size: 12px; }
+  .modal { padding: 20px; }
+  header { padding: 12px 14px; }
+}
 </style>
 </head>
 <body>
