@@ -16,7 +16,7 @@ import tokenStatsRoutes from './routes/token-stats.js';
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const app = express();
 
-app.use(express.json());
+app.use(express.json({ limit: '512kb' })); // 限制请求体大小，防超大 JSON
 
 // ===== 安全响应头 =====
 app.use((req, res, next) => {
