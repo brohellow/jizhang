@@ -1113,6 +1113,10 @@
       toast(isEdit ? '已保存修改' : '已记一笔 ✅');
       resetRecordForm();
       loadRecords();
+      // 快速连续记账：非编辑时自动聚焦金额框
+      if (!isEdit) {
+        setTimeout(function () { var a = $('#record-amount'); if (a) a.focus(); }, 100);
+      }
     }).catch(function (err) {
       toast(err.message);
     }).finally(function () {
