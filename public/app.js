@@ -1594,6 +1594,13 @@
 
   function trendChart(monthly) {
     var el = $('#chart-trend');
+    // 近 12 个月合计（卡片标题旁）
+    var sumIn = monthly.reduce(function (s, m) { return s + m.income; }, 0);
+    var sumOut = monthly.reduce(function (s, m) { return s + m.expense; }, 0);
+    var sumEl = $('#trend-summary');
+    if (sumEl) {
+      sumEl.textContent = '近12月合计：收入 ' + fmtBig(sumIn) + ' · 支出 ' + fmtBig(sumOut);
+    }
     if (!state.charts.trend) {
       var chart = chartBase(el);
       if (!chart) return;
