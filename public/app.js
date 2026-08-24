@@ -1327,6 +1327,12 @@
       var outHint = $('#stat-expense').parentNode.querySelector('.hint');
       if (inHint) inHint.innerHTML = '环比上月' + deltaHtml(dIn, false);
       if (outHint) outHint.innerHTML = '环比上月' + deltaHtml(dOut, true);
+      // 本月峰值支出日
+      var peakDay = null;
+      daily.forEach(function (d) { if (d.expense > 0 && (!peakDay || d.expense > peakDay.amount)) peakDay = { day: d.day, amount: d.expense }; });
+      if (outHint && peakDay) {
+        outHint.innerHTML += '<br>峰值日 ' + peakDay.day.slice(5).replace('-', '/') + ' · ' + fmt(peakDay.amount);
+      }
       var budgetEl = $('#stat-budget');
       if (summary.budget) {
         var pct = summary.budget_pct || 0;
