@@ -573,6 +573,8 @@ main { max-width: 1140px; margin: 0 auto; padding: 20px; }
   color: var(--muted);
   pointer-events: none;
 }
+.date-quick { display: flex; gap: 6px; margin-bottom: 10px; flex-wrap: wrap; }
+.date-quick .btn { padding: 3px 10px; font-size: 12px; }
 .quick-amounts { display: flex; gap: 6px; margin-bottom: 10px; flex-wrap: wrap; }
 .quick-amounts button {
   border: 1px solid var(--border); background: var(--card); color: var(--text);

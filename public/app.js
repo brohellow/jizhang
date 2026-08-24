@@ -2212,6 +2212,16 @@
       });
     }
 
+    // 日期快捷
+    document.querySelectorAll('.date-quick button').forEach(function (b) {
+      b.onclick = function () {
+        var d = new Date();
+        if (b.dataset.dq === 'yesterday') d.setDate(d.getDate() - 1);
+        else if (b.dataset.dq === 'monthstart') d.setDate(1);
+        $('#record-date').value = d.getFullYear() + '-' + String(d.getMonth() + 1).padStart(2, '0') + '-' + String(d.getDate()).padStart(2, '0');
+      };
+    });
+
     // 快捷金额：点击填充金额框
     document.querySelectorAll('.quick-amounts button').forEach(function (b) {
       b.onclick = function () {
