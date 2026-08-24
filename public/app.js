@@ -638,8 +638,9 @@
     var bubble = document.createElement('div');
     bubble.className = 'ai-bubble';
     bubble.innerHTML = aiTextHtml(text);
-    // 双击复制（桌面）
-    bubble.title = '双击复制';
+    // 时间戳 + 双击复制
+    var now = new Date();
+    bubble.title = '双击复制 · ' + now.toLocaleTimeString();
     bubble.addEventListener('dblclick', function () {
       var raw = text.replace(/<[^>]*>/g, '');
       var ta = document.createElement('textarea');
@@ -1022,7 +1023,7 @@
     api('/records?' + params.join('&')).then(function (data) {
       state.recordTotal = data.total;
       state.lastItems = data.items;
-      // 月份小计（仅当月筛选时）
+      // 月份小计（仅当月筛选时）+ 今日支出
       if (month) {
         api('/stats/summary?ledger_id=' + state.currentLedgerId + '&month=' + month).then(function (s) {
           var box = $('#record-list');
@@ -1031,7 +1032,12 @@
           if (old) old.remove();
           var el = document.createElement('div');
           el.className = 'record-month-total';
-          el.textContent = '📅 本月支出 ' + fmt(s.expense) + ' · 收入 ' + fmt(s.income) + ' · 结余 ' + fmt(s.net);
+          var todayStr = new Date().toISOString().slice(0, 10);
+          var todaySpent = 0;
+          state.lastItems.forEach(function (r) {
+            if (r.record_date === todayStr && r.type === 'expense') todaySpent += r.amount;
+          });
+          el.textContent = '📅 本月支出 ' + fmt(s.expense) + ' · 收入 ' + fmt(s.income) + (todaySpent ? ' · 今日支出 ' + fmt(todaySpent) : '');
           box.insertBefore(el, box.firstChild);
         }).catch(function () {});
       }
