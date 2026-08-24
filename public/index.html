@@ -22,12 +22,18 @@
     </div>
     <form id="login-form">
       <input id="login-username" placeholder="用户名" autocomplete="username">
-      <input id="login-password" type="password" placeholder="密码" autocomplete="current-password">
+      <div class="pw-field">
+        <input id="login-password" type="password" placeholder="密码" autocomplete="current-password">
+        <button type="button" class="pw-toggle" data-target="login-password" title="显示/隐藏密码">👁</button>
+      </div>
       <button type="submit" class="btn primary block">登 录</button>
     </form>
     <form id="register-form" class="hidden">
       <input id="reg-username" placeholder="用户名（2-32 位字母/数字/中文）" autocomplete="username">
-      <input id="reg-password" type="password" placeholder="密码（至少 6 位）" autocomplete="new-password">
+      <div class="pw-field">
+        <input id="reg-password" type="password" placeholder="密码（至少 6 位）" autocomplete="new-password">
+        <button type="button" class="pw-toggle" data-target="reg-password" title="显示/隐藏密码">👁</button>
+      </div>
       <div class="pw-meter hidden" id="pw-meter"><div class="pw-fill" id="pw-fill"></div></div>
       <input id="reg-nickname" placeholder="昵称（可选）">
       <button type="submit" class="btn primary block">注 册</button>

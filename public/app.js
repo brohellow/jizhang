@@ -1819,6 +1819,17 @@
       setTimeout(function () { regBtn.disabled = false; regBtn.textContent = '注 册'; }, 1500);
     };
 
+    // 密码可见切换
+    document.querySelectorAll('.pw-toggle').forEach(function (btn) {
+      btn.onclick = function () {
+        var target = document.getElementById(btn.dataset.target);
+        if (!target) return;
+        var show = target.type === 'password';
+        target.type = show ? 'text' : 'password';
+        btn.textContent = show ? '🙈' : '👁';
+      };
+    });
+
     // 个人中心
     // 主题切换
     $('#btn-theme').onclick = function () {
