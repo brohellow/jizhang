@@ -2124,6 +2124,7 @@
     ];
     var hintIdx = 0;
     setInterval(function () {
+      if (document.hidden) return; // 页面隐藏时暂停（节能）
       if (aiInput && !aiInput.value && !aiSending) {
         hintIdx = (hintIdx + 1) % aiHints.length;
         aiInput.placeholder = aiHints[hintIdx];
