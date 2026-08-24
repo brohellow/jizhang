@@ -32,7 +32,7 @@
       <button type="submit" class="btn primary block">注 册</button>
     </form>
     <p class="hint" id="login-hint"></p>
-    <p class="hint muted">演示账号：demo / demo123（内含示例数据）</p>
+    <p class="hint muted demo-tip">💡 演示账号：demo / demo123（内含示例数据）</p>
   </div>
 </div>
 
@@ -146,7 +146,10 @@
               <button type="button" data-amt="500">500</button>
             </div>
             <div id="category-picker" class="category-grid"></div>
-            <input type="text" id="record-note" placeholder="备注（可选）">
+            <div class="note-wrap">
+              <input type="text" id="record-note" placeholder="备注（可选）" maxlength="100">
+              <span class="note-count" id="note-count">0/100</span>
+            </div>
             <button type="submit" class="btn primary block" id="record-submit">保存</button>
             <button type="button" class="btn ghost block hidden" id="record-cancel">取消编辑</button>
           </form>
@@ -191,7 +194,7 @@
       </div>
       <div class="grid-2">
         <div class="card"><h2>📈 近 12 个月收支趋势</h2><div id="chart-trend" class="chart"></div></div>
-        <div class="card"><h2>本月支出分类占比</h2><div id="chart-pie" class="chart"></div></div>
+        <div class="card"><h2>本月支出分类占比</h2><div id="chart-pie" class="chart"></div><div id="pie-top-list" class="pie-top-list"></div></div>
       </div>
       <div class="card"><h2>📅 本月每日收支</h2><div id="chart-daily" class="chart"></div></div>
     </section>
@@ -282,6 +285,8 @@
   </main>
   <footer class="site-footer">📒 记账本 · 多账本 · 预算 · AI 助手 · <span id="footer-version">v1.0</span></footer>
 </div>
+
+<button type="button" id="back-to-top" class="back-to-top hidden" title="返回顶部">↑</button>
 
 <div id="toast" class="toast hidden"></div>
 

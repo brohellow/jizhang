@@ -590,6 +590,14 @@
   // ================= AI 聊天（多轮上下文） =================
   var aiHistory = []; // [{role:'user'|'assistant', content}]
 
+  // AI 文本 → HTML（转义 + 换行 + 简易列表）
+  function aiTextHtml(text) {
+    var html = esc(text)
+      .replace(/\n/g, '<br>')
+      .replace(/^(?:\s*[-*]\s+)(.+)$/gm, '<div style="padding-left:14px;position:relative;">• $1</div>');
+    return html;
+  }
+
   function appendAiMsg(role, text) {
     var list = $('#ai-chat-list');
     var div = document.createElement('div');
@@ -601,7 +609,7 @@
     div.appendChild(av);
     var bubble = document.createElement('div');
     bubble.className = 'ai-bubble';
-    bubble.innerHTML = esc(text).replace(/\n/g, '<br>');
+    bubble.innerHTML = aiTextHtml(text);
     div.appendChild(bubble);
     list.appendChild(div);
     list.scrollTop = list.scrollHeight;
@@ -731,7 +739,7 @@
   function pendingMsg(el, text) {
     if (!el) return;
     el.textContent = '';
-    el.innerHTML = esc(text).replace(/\n/g, '<br>');
+    el.innerHTML = aiTextHtml(text);
   }
 
   function sendAiMessage() {
@@ -760,7 +768,7 @@
     })
       .then(function (data) {
         pending.textContent = '';
-        pending.innerHTML = esc(data.reply || '完成').replace(/\n/g, '<br>');
+        pending.innerHTML = aiTextHtml(data.reply || '完成');
         // 记录到上下文历史（用户 + 助手）
         aiHistory.push({ role: 'user', content: text });
         aiHistory.push({ role: 'assistant', content: data.reply || '完成' });
@@ -772,7 +780,7 @@
       })
       .catch(function (e) {
         pending.textContent = '';
-        pending.innerHTML = esc(e.message);
+        pending.innerHTML = aiTextHtml(e.message);
       })
       .finally(function () {
         var sendBtn = $('#ai-send');
@@ -989,7 +997,7 @@
   function renderRecordList() {
     var box = $('#record-list');
     if (state.lastItems.length === 0) {
-      box.innerHTML = '<div class="empty">暂无记录，记一笔吧 📝</div>';
+      box.innerHTML = '<div class="empty empty-records">暂无记录，记一笔吧 📝</div>';
     } else {
       var html = [];
       var lastDate = '';
@@ -1108,9 +1116,19 @@
         var pct = summary.budget_pct || 0;
         budgetEl.textContent = fmt(summary.budget_spent) + ' / ' + fmt(summary.budget) + '（' + pct + '%）';
         budgetEl.className = 'value' + (pct > 100 ? ' expense' : (pct > 80 ? '' : ''));
+        // 迷你进度条
+        var mini = budgetEl.parentNode.querySelector('.stat-mini-bar');
+        if (!mini) {
+          mini = document.createElement('div');
+          mini.className = 'stat-mini-bar';
+          budgetEl.parentNode.appendChild(mini);
+        }
+        mini.innerHTML = '<i style="width:' + Math.min(100, pct) + '%;background:' + (pct > 100 ? 'var(--expense)' : pct > 80 ? 'var(--amber)' : 'var(--primary)') + '"></i>';
       } else {
         budgetEl.textContent = '未设置';
         budgetEl.className = 'value';
+        var mini2 = budgetEl.parentNode.querySelector('.stat-mini-bar');
+        if (mini2) mini2.remove();
       }
       trendChart(monthly);
       pieChart(byCat);
@@ -1127,7 +1145,7 @@
 
   function chartBase(el) {
     if (typeof echarts === 'undefined') {
-      el.innerHTML = '<div class="empty">图表库未加载（请检查 vendor/echarts.min.js）</div>';
+      el.innerHTML = '<div class="empty empty-chart">图表库未加载（请检查 vendor/echarts.min.js）</div>';
       return null;
     }
     return echarts.init(el, null, { renderer: 'canvas' });
@@ -1158,9 +1176,11 @@
       yAxis: { type: 'value', axisLabel: { color: tc }, splitLine: { lineStyle: { color: ac } } },
       series: [
         { name: '收入', type: 'bar', data: monthly.map(function (m) { return m.income; }), barMaxWidth: 16,
-          itemStyle: { borderRadius: [5,5,0,0], color: { type: 'linear', x: 0, y: 0, x2: 0, y2: 1, colorStops: [{offset:0,color:'#4ade80'},{offset:1,color:'#16a34a'}] } } },
+          itemStyle: { borderRadius: [5,5,0,0], color: { type: 'linear', x: 0, y: 0, x2: 0, y2: 1, colorStops: [{offset:0,color:'#4ade80'},{offset:1,color:'#16a34a'}] } },
+          emphasis: { itemStyle: { shadowBlur: 8, shadowColor: 'rgba(34,197,94,.35)' } } },
         { name: '支出', type: 'bar', data: monthly.map(function (m) { return m.expense; }), barMaxWidth: 16,
-          itemStyle: { borderRadius: [5,5,0,0], color: { type: 'linear', x: 0, y: 0, x2: 0, y2: 1, colorStops: [{offset:0,color:'#f87171'},{offset:1,color:'#dc2626'}] } } },
+          itemStyle: { borderRadius: [5,5,0,0], color: { type: 'linear', x: 0, y: 0, x2: 0, y2: 1, colorStops: [{offset:0,color:'#f87171'},{offset:1,color:'#dc2626'}] } },
+          emphasis: { itemStyle: { shadowBlur: 8, shadowColor: 'rgba(244,101,107,.35)' } } },
       ],
     }, true);
   }
@@ -1170,8 +1190,24 @@
     // 空数据：显示引导
     if (!byCat || byCat.length === 0) {
       if (state.charts.pie) { state.charts.pie.dispose(); state.charts.pie = null; }
-      el.innerHTML = '<div class="empty">本月暂无支出，先去记一笔吧 💸</div>';
+      el.innerHTML = '<div class="empty empty-chart">本月暂无支出，先去记一笔吧 💸</div>';
+      var tl = $('#pie-top-list');
+      if (tl) tl.innerHTML = '';
       return;
+    }
+    // Top 分类进度列表
+    var tl = $('#pie-top-list');
+    if (tl) {
+      var maxAmt = byCat[0] ? byCat[0].amount : 1;
+      tl.innerHTML = byCat.map(function (c) {
+        var pct = maxAmt > 0 ? Math.round(c.amount / maxAmt * 100) : 0;
+        return '<div class="pie-top-item">' +
+          '<span class="pt-icon">' + esc(c.category_icon || '📌') + '</span>' +
+          '<span class="pt-name">' + esc(c.category_name || '未分类') + '</span>' +
+          '<span class="pt-bar"><i style="width:' + pct + '%"></i></span>' +
+          '<span class="pt-val">' + fmt(c.amount) + '</span>' +
+          '</div>';
+      }).join('');
     }
     if (!state.charts.pie) {
       var chart = chartBase(el);
@@ -1225,9 +1261,11 @@
       yAxis: { type: 'value', axisLabel: { color: tc }, splitLine: { lineStyle: { color: ac } } },
       series: [
         { name: '收入', type: 'bar', data: daily.map(function (d) { return d.income; }), barMaxWidth: 10,
-          itemStyle: { borderRadius: [4,4,0,0], color: { type: 'linear', x: 0, y: 0, x2: 0, y2: 1, colorStops: [{offset:0,color:'#4ade80'},{offset:1,color:'#16a34a'}] } } },
+          itemStyle: { borderRadius: [4,4,0,0], color: { type: 'linear', x: 0, y: 0, x2: 0, y2: 1, colorStops: [{offset:0,color:'#4ade80'},{offset:1,color:'#16a34a'}] } },
+          emphasis: { itemStyle: { shadowBlur: 8, shadowColor: 'rgba(34,197,94,.35)' } } },
         { name: '支出', type: 'bar', data: daily.map(function (d) { return d.expense; }), barMaxWidth: 10,
-          itemStyle: { borderRadius: [4,4,0,0], color: { type: 'linear', x: 0, y: 0, x2: 0, y2: 1, colorStops: [{offset:0,color:'#f87171'},{offset:1,color:'#dc2626'}] } } },
+          itemStyle: { borderRadius: [4,4,0,0], color: { type: 'linear', x: 0, y: 0, x2: 0, y2: 1, colorStops: [{offset:0,color:'#f87171'},{offset:1,color:'#dc2626'}] } },
+          emphasis: { itemStyle: { shadowBlur: 8, shadowColor: 'rgba(244,101,107,.35)' } } },
       ],
     }, true);
   }
@@ -1295,7 +1333,7 @@
 
       var listBox = $('#budget-list');
       if (data.items.length === 0) {
-        listBox.innerHTML = '<div class="empty">尚未设置分类预算</div>';
+        listBox.innerHTML = '<div class="empty empty-budget">尚未设置分类预算</div>';
       } else {
         var html2 = [];
         data.items.forEach(function (it) {
@@ -1359,7 +1397,7 @@
   function renderLedgers() {
     var box = $('#ledger-list');
     if (state.ledgers.length === 0) {
-      box.innerHTML = '<div class="empty">还没有账本，先创建一个吧</div>';
+      box.innerHTML = '<div class="empty empty-ledgers">还没有账本，先创建一个吧</div>';
       return;
     }
     var html = [];
@@ -1453,7 +1491,7 @@
       var box = $('#cat-' + type);
       var list = state.categories.filter(function (c) { return c.type === type; });
       if (list.length === 0) {
-        box.innerHTML = '<div class="empty">暂无分类</div>';
+        box.innerHTML = '<div class="empty empty-categories">暂无分类</div>';
         return;
       }
       var html = [];
@@ -1660,6 +1698,14 @@
       else if (e.key === 'Enter' && e.shiftKey) { setTimeout(aiAutoGrow, 0); }
     };
 
+    // 返回顶部
+    var btt = $('#back-to-top');
+    window.addEventListener('scroll', function () {
+      if (!btt) return;
+      btt.classList.toggle('hidden', window.scrollY < 300);
+    }, { passive: true });
+    if (btt) btt.onclick = function () { window.scrollTo({ top: 0, behavior: 'smooth' }); };
+
     // 退出
     $('#btn-logout').onclick = function () {
       api('/auth/logout', { method: 'POST' }).catch(function () {});
@@ -1694,6 +1740,14 @@
       };
     });
     $('#record-form').onsubmit = submitRecord;
+    // 备注字数
+    var noteInput = $('#record-note');
+    if (noteInput) {
+      var noteCount = $('#note-count');
+      noteInput.addEventListener('input', function () {
+        if (noteCount) noteCount.textContent = noteInput.value.length + '/100';
+      });
+    }
     // 密码强度提示
     var pwInput = $('#reg-password');
     if (pwInput) {
