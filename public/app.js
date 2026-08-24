@@ -1,6 +1,19 @@
 (function () {
   'use strict';
 
+  // ===== 全局错误捕获（防白屏 + 诊断） =====
+  window.addEventListener('error', function (e) {
+    try {
+      var msg = (e && e.message) || '未知错误';
+      var toastEl = document.getElementById('toast');
+      if (toastEl) {
+        toastEl.textContent = '⚠️ 页面出错: ' + msg.slice(0, 60);
+        toastEl.classList.remove('hidden');
+        setTimeout(function () { toastEl.classList.add('hidden'); }, 3000);
+      }
+    } catch (err) {}
+  });
+
   // ================= 状态 =================
   var state = {
     token: localStorage.getItem('jz_token') || '',
