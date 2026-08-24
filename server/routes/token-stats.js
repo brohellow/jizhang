@@ -50,7 +50,9 @@ router.post('/token-sync', (req, res) => {
   // 追加历史（只保留近 7 天，按小时去重）
   try {
     const hour = Math.floor(Date.now() / 3600000);
-    const history = fs.readFileSync(HISTORY_FILE, 'utf8').split('\n').filter(Boolean)
+    let rawHistory = '';
+    try { rawHistory = fs.readFileSync(HISTORY_FILE, 'utf8'); } catch (e) { rawHistory = ''; }
+    const history = rawHistory.split('\n').filter(Boolean)
       .map((l) => { try { return JSON.parse(l); } catch (e) { return null; } })
       .filter((x) => x && x._hour !== undefined && x._hour > hour - 24 * 7);
     history.push({
