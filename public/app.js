@@ -27,7 +27,12 @@
     });
   }
 
-  function fmt(cents) { return '¥' + (cents / 100).toFixed(2); }
+  function fmt(cents) {
+    var v = (cents / 100).toFixed(2);
+    var parts = v.split('.');
+    parts[0] = parts[0].replace(/\B(?=(\d{3})+(?!\d))/g, ',');
+    return '¥' + parts.join('.');
+  }
 
   function pad2(n) { return n < 10 ? '0' + n : '' + n; }
 
@@ -610,6 +615,17 @@
     var bubble = document.createElement('div');
     bubble.className = 'ai-bubble';
     bubble.innerHTML = aiTextHtml(text);
+    // 双击复制（桌面）
+    bubble.title = '双击复制';
+    bubble.addEventListener('dblclick', function () {
+      var raw = text.replace(/<[^>]*>/g, '');
+      var ta = document.createElement('textarea');
+      ta.value = raw;
+      document.body.appendChild(ta);
+      ta.select();
+      try { document.execCommand('copy'); toast('已复制'); } catch (e) {}
+      document.body.removeChild(ta);
+    });
     div.appendChild(bubble);
     list.appendChild(div);
     list.scrollTop = list.scrollHeight;
@@ -931,6 +947,12 @@
 
   function loadRecords() {
     var box = $('#record-list');
+    // 有筛选时显示清除按钮
+    var clearBtn = $('#btn-clear-filter');
+    if (clearBtn) {
+      var hasFilter = $('#filter-month').value || $('#filter-type').value || $('#filter-category').value || $('#filter-keyword').value.trim();
+      clearBtn.classList.toggle('hidden', !hasFilter);
+    }
     if (box && !box.querySelector('.record-item')) {
       box.innerHTML = '<div class="skeleton-list">' +
         '<div class="sk-item"><div class="sk-icon"></div><div class="sk-lines"><div class="sk-line w60"></div><div class="sk-line w30"></div></div><div class="sk-amt"></div></div>' +
@@ -1252,11 +1274,19 @@
       state.charts.daily = chart;
     }
     var tc = chartTextColor(), ac = chartAxisColor();
+    // 当月汇总
+    var sumIn = daily.reduce(function (s, d) { return s + d.income; }, 0);
+    var sumOut = daily.reduce(function (s, d) { return s + d.expense; }, 0);
     state.charts.daily.setOption({
       textStyle: { color: tc },
+      title: {
+        text: '收入 ' + fmt(sumIn) + ' · 支出 ' + fmt(sumOut),
+        left: 'center', top: 2,
+        textStyle: { fontSize: 12, color: tc, fontWeight: 'normal' },
+      },
       tooltip: { trigger: 'axis', valueFormatter: function (v) { return '¥' + (v / 100).toFixed(2); }, backgroundColor: isDarkTheme() ? '#2a2f3a' : '#fff', borderColor: 'rgba(0,0,0,.08)', textStyle: { color: tc, fontSize: 12 }, extraCssText: 'box-shadow:0 6px 20px rgba(0,0,0,.12);border-radius:10px;padding:8px 12px;' },
-      legend: { data: ['收入', '支出'], textStyle: { color: tc } },
-      grid: { left: 60, right: 20, top: 40, bottom: 30 },
+      legend: { data: ['收入', '支出'], textStyle: { color: tc }, top: 18 },
+      grid: { left: 60, right: 20, top: 46, bottom: 30 },
       xAxis: { type: 'category', data: daily.map(function (d) { return Number(d.day.slice(8)); }), axisLabel: { color: tc }, axisLine: { lineStyle: { color: ac } } },
       yAxis: { type: 'value', axisLabel: { color: tc }, splitLine: { lineStyle: { color: ac } } },
       series: [
@@ -1780,6 +1810,15 @@
 
     // 明细筛选
     $('#filter-month').onchange = function () { state.recordPage = 1; loadRecords(); };
+    // 清除筛选
+    $('#btn-clear-filter').onclick = function () {
+      $('#filter-month').value = '';
+      $('#filter-type').value = '';
+      $('#filter-category').value = '';
+      $('#filter-keyword').value = '';
+      state.recordPage = 1;
+      loadRecords();
+    };
     $('#filter-type').onchange = function () { state.recordPage = 1; loadRecords(); };
     $('#filter-category').onchange = function () { state.recordPage = 1; loadRecords(); };
     $('#filter-keyword').oninput = debounce(function () { state.recordPage = 1; loadRecords(); }, 400);
@@ -1792,6 +1831,16 @@
 
     // 统计月份
     $('#stats-month').onchange = renderStats;
+    function shiftMonth(delta) {
+      var v = $('#stats-month').value;
+      if (!v) v = currentMonthStr();
+      var d = new Date(v + '-01');
+      d.setMonth(d.getMonth() + delta);
+      $('#stats-month').value = d.getFullYear() + '-' + String(d.getMonth() + 1).padStart(2, '0');
+      renderStats();
+    }
+    $('#stats-month-prev').onclick = function () { shiftMonth(-1); };
+    $('#stats-month-next').onclick = function () { shiftMonth(1); };
     // 预算月份
     $('#budget-month').onchange = renderBudget;
     $('#budget-form').onsubmit = function (e) {

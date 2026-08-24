@@ -692,6 +692,12 @@ main { max-width: 1140px; margin: 0 auto; padding: 20px; }
 
 /* ---------- 预算页 ---------- */
 .budget-overall { margin-bottom: 14px; }
+.section-sub-title {
+  font-size: 14px;
+  font-weight: 600;
+  margin: 18px 0 8px;
+  color: var(--text);
+}
 .progress {
   height: 9px;
   background: var(--soft-bg-2);

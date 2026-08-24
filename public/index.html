@@ -165,6 +165,7 @@
             </select>
             <select id="filter-category"><option value="">全部分类</option></select>
             <input type="search" id="filter-keyword" placeholder="搜索备注">
+            <button type="button" id="btn-clear-filter" class="btn ghost sm hidden" title="清除筛选">✕ 清除</button>
             <button type="button" id="btn-export" class="btn ghost sm" title="按当前筛选条件导出 CSV">导出 CSV</button>
           </div>
           <div id="record-list" class="record-list"></div>
@@ -181,7 +182,9 @@
     <section id="tab-stats" class="tab-pane">
       <div class="card">
         <div class="filter-bar">
+          <button type="button" id="stats-month-prev" class="btn ghost sm" title="上个月">‹</button>
           <input type="month" id="stats-month">
+          <button type="button" id="stats-month-next" class="btn ghost sm" title="下个月">›</button>
           <span class="muted">统计当前账本数据</span>
         </div>
         <div class="stat-cards">
@@ -206,9 +209,9 @@
           <input type="month" id="budget-month">
         </div>
         <div id="budget-overall" class="budget-overall"></div>
-        <h3>分类预算</h3>
+        <h3 class="section-sub-title">📂 分类预算</h3>
         <div id="budget-list" class="budget-list"></div>
-        <h3>添加分类预算</h3>
+        <h3 class="section-sub-title">➕ 添加分类预算</h3>
         <form id="budget-form" class="inline-form">
           <select id="budget-category"></select>
           <input type="number" id="budget-amount" placeholder="预算金额（元）" min="0.01" step="0.01">
@@ -221,27 +224,27 @@
     <section id="tab-ledger" class="tab-pane">
       <div class="grid-2">
         <div class="card">
-          <h2>账本</h2>
+          <h2>📒 账本</h2>
           <div id="ledger-list" class="ledger-list"></div>
-          <h3>新建账本</h3>
+          <h3 class="section-sub-title">➕ 新建账本</h3>
           <form id="ledger-form" class="inline-form">
             <input id="ledger-name" placeholder="账本名称（如：家庭、生意）">
             <button type="submit" class="btn primary">创建</button>
           </form>
         </div>
         <div class="card">
-          <h2>分类管理</h2>
+          <h2>🏷️ 分类管理</h2>
           <div class="cat-cols">
             <div>
-              <h3>支出分类</h3>
+              <h3 class="section-sub-title">支出分类</h3>
               <div id="cat-expense" class="cat-list"></div>
             </div>
             <div>
-              <h3>收入分类</h3>
+              <h3 class="section-sub-title">收入分类</h3>
               <div id="cat-income" class="cat-list"></div>
             </div>
           </div>
-          <h3>新增分类</h3>
+          <h3 class="section-sub-title">➕ 新增分类</h3>
           <form id="cat-form" class="inline-form">
             <select id="cat-type">
               <option value="expense">支出</option>
