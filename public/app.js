@@ -659,7 +659,7 @@
     aiHistory = [];
     var list = $('#ai-chat-list');
     list.innerHTML = '';
-    appendAiMsg('bot', '你好！我是 AI 记账助手 🤖<br>对话已清空。可以直接说「今天午饭花了 25 块」帮你记账，也可以问我「这个月花了多少」。');
+    appendAiMsg('bot', '你好！我是 AI 记账助手 🤖<br>对话已清空。可以直接说「今天午饭花了 25 块」帮你记账，也可以问我「这个月花了多少」。<br><br><span style="opacity:.75;font-size:12px;">玩法：📖 账单故事 · 🎁 本周盲盒 · 💰 攒钱模拟</span>');
     updateAiCount();
   }
 
