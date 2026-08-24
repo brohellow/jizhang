@@ -1336,6 +1336,13 @@
   }
 
   // ================= 统计 =================
+  // 本月剩余天数
+  function daysLeftInMonth() {
+    var now = new Date();
+    var lastDay = new Date(now.getFullYear(), now.getMonth() + 1, 0).getDate();
+    return Math.max(1, lastDay - now.getDate());
+  }
+
   // 大数缩写（统计卡）
   function fmtBig(cents) {
     var v = cents / 100;
@@ -1698,6 +1705,7 @@
           '<div class="budget-ring-main">' +
           '<div class="b-info">已支出 ' + fmt(data.overall.spent) + ' / 预算 ' + fmt(data.overall.amount) + '</div>' +
           (data.overall.remaining >= 0 ? '<div class="b-info ok">✅ 剩余 ' + fmt(data.overall.remaining) + '</div>' : '<div class="b-info over">⚠️ 已超支 ' + fmt(-data.overall.remaining) + '</div>') +
+          (data.overall.remaining > 0 ? '<div class="b-info" style="font-size:12px;color:var(--muted);">💡 剩余日均可用 ' + fmt(Math.round(data.overall.remaining / Math.max(1, daysLeftInMonth()))) + '</div>' : '') +
           '<div class="budget-ring-actions">' +
           '<button type="button" class="btn ghost sm" data-act="edit-overall">调整</button>' +
           '<button type="button" class="btn danger sm" data-act="del" data-id="' + data.overall.id + '">删</button>' +
