@@ -2036,6 +2036,13 @@
       else if (e.key === 'Enter' && e.shiftKey) { setTimeout(aiAutoGrow, 0); }
     };
 
+    // 网络状态提示
+    function netStatus(online) {
+      if (!online) toast('⚠️ 网络已断开，数据可能无法同步');
+    }
+    window.addEventListener('offline', function () { netStatus(false); });
+    window.addEventListener('online', function () { netStatus(true); });
+
     // 返回顶部
     var btt = $('#back-to-top');
     window.addEventListener('scroll', function () {
