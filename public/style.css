@@ -1485,6 +1485,12 @@ main { max-width: 1140px; margin: 0 auto; padding: 20px; }
   background: rgba(79,125,249,.08);
 }
 :root[data-theme="dark"] .ai-money { color: #8ab4ff; }
+.ai-followup { margin-top: 10px; display: flex; align-items: center; gap: 6px; flex-wrap: wrap; }
+.ai-followup-label { font-size: 11px; color: var(--muted); }
+.ai-followup .ai-suggest { margin-top: 0; font-size: 12px; padding: 3px 10px; }
+.ai-followup { margin-top: 10px; display: flex; align-items: center; gap: 6px; flex-wrap: wrap; }
+.ai-followup-label { font-size: 11px; color: var(--muted); }
+.ai-followup .ai-suggest { margin-top: 0; font-size: 12px; padding: 3px 10px; }
 .ai-suggest {
   display: inline-block;
   margin-top: 6px;

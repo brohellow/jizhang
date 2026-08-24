@@ -949,6 +949,15 @@
       .then(function (data) {
         pending.textContent = '';
         pending.innerHTML = aiTextHtml(data.reply || '完成');
+        // 追问建议（轻量）
+        var sug = document.createElement('div');
+        sug.className = 'ai-followup';
+        sug.innerHTML = '<span class="ai-followup-label">继续问：</span>' +
+          '<span class="ai-suggest" data-q="这个月花了多少钱？">本月花费</span>' +
+          '<span class="ai-suggest" data-q="分析一下我的消费习惯">消费分析</span>' +
+          '<span class="ai-suggest" data-q="帮我记账：刚才买了瓶水3元">快速记账</span>';
+        pending.appendChild(sug);
+        bindAiSuggests();
         // 记录到上下文历史（用户 + 助手）
         aiHistory.push({ role: 'user', content: text });
         aiHistory.push({ role: 'assistant', content: data.reply || '完成' });
