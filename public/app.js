@@ -1186,6 +1186,12 @@
 
   function renderRecordList() {
     var box = $('#record-list');
+    // 页切换淡入动画
+    if (box) {
+      box.style.opacity = '0';
+      box.style.transition = 'opacity .2s ease';
+      requestAnimationFrame(function () { box.style.opacity = '1'; });
+    }
     if (state.lastItems.length === 0) {
       var hasFilter = $('#filter-month').value || $('#filter-type').value || $('#filter-category').value || $('#filter-keyword').value.trim();
       box.innerHTML = hasFilter
