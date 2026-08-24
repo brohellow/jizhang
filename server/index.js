@@ -11,6 +11,7 @@ import budgetRoutes from './routes/budgets.js';
 import statsRoutes from './routes/stats.js';
 import aiRoutes from './routes/ai.js';
 import sgsRoutes from './routes/sgs.js';
+import tokenStatsRoutes from './routes/token-stats.js';
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const app = express();
@@ -47,6 +48,7 @@ app.use('/api/budgets', budgetRoutes);
 app.use('/api/stats', statsRoutes);
 app.use('/api/ai', aiRoutes);
 app.use('/api/sgs', sgsRoutes);
+app.use('/api', tokenStatsRoutes);
 
 // 静态前端
 app.use(express.static(path.join(__dirname, '..', 'public')));
