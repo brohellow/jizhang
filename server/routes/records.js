@@ -44,6 +44,10 @@ function validateRecord(b, userId, res) {
     res.status(400).json({ error: '金额必须大于 0' });
     return null;
   }
+  if (amount > 100000000) { // 单笔上限 1 亿（防溢出）
+    res.status(400).json({ error: '单笔金额不能超过 1 亿' });
+    return null;
+  }
   const date = DATE_RE.test(b.record_date || '') ? b.record_date : todayStr();
   // 备注长度限制（防异常大数据）
   const note = String(b.note || '').slice(0, 200);
