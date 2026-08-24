@@ -49,10 +49,18 @@
   var toastTimer = null;
   function toast(msg) {
     var el = $('#toast');
-    el.textContent = msg;
+    // 识别成功/错误类型，加图标
+    var icon = '';
+    var isErr = /失败|错误|异常|无法|请先|不存在|频繁/.test(msg);
+    var isOk = /成功|已保存|已删除|已复制|已更新/.test(msg);
+    if (isErr) icon = '⚠️ ';
+    else if (isOk) icon = '✅ ';
+    el.textContent = icon + msg;
     el.classList.remove('hidden');
+    el.classList.toggle('toast-err', isErr);
+    el.classList.toggle('toast-ok', isOk);
     clearTimeout(toastTimer);
-    toastTimer = setTimeout(function () { el.classList.add('hidden'); }, 2200);
+    toastTimer = setTimeout(function () { el.classList.add('hidden'); }, 2400);
   }
 
   async function api(path, opts) {
@@ -790,6 +798,10 @@
     if (!isFinite(body.amount) || body.amount <= 0) { toast('请输入金额'); return; }
     if (!body.category_id) { toast('请选择分类'); return; }
     var isEdit = !!state.editingRecordId;
+    var btn = $('#record-submit');
+    var orig = btn.textContent;
+    btn.disabled = true;
+    btn.innerHTML = '<span class="btn-spin"></span> 保存中…';
     var p = isEdit
       ? api('/records/' + state.editingRecordId, { method: 'PUT', body: body })
       : api('/records', { method: 'POST', body: body });
@@ -797,10 +809,23 @@
       toast(isEdit ? '已保存修改' : '已记一笔');
       resetRecordForm();
       loadRecords();
-    }).catch(function (e) { toast(e.message); });
+    }).catch(function (err) {
+      toast(err.message);
+    }).finally(function () {
+      btn.disabled = false;
+      btn.textContent = orig;
+    });
   }
 
   function loadRecords() {
+    var box = $('#record-list');
+    if (box && !box.querySelector('.record-item')) {
+      box.innerHTML = '<div class="skeleton-list">' +
+        '<div class="sk-item"><div class="sk-icon"></div><div class="sk-lines"><div class="sk-line w60"></div><div class="sk-line w30"></div></div><div class="sk-amt"></div></div>' +
+        '<div class="sk-item"><div class="sk-icon"></div><div class="sk-lines"><div class="sk-line w60"></div><div class="sk-line w30"></div></div><div class="sk-amt"></div></div>' +
+        '<div class="sk-item"><div class="sk-icon"></div><div class="sk-lines"><div class="sk-line w60"></div><div class="sk-line w30"></div></div><div class="sk-amt"></div></div>' +
+        '</div>';
+    }
     var month = $('#filter-month').value || '';
     var from = month ? month + '-01' : '';
     var to = month ? month + '-31' : '';
@@ -928,6 +953,22 @@
   }
 
   // ================= 统计 =================
+  // 数字滚动动画（尊重系统减少动态效果）
+  function animateNum(el, target) {
+    if (!el) return;
+    var reduce = window.matchMedia && window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+    if (reduce) { el.textContent = fmt(target); return; }
+    var from = 0, dur = 600, start = null;
+    function step(ts) {
+      if (!start) start = ts;
+      var p = Math.min(1, (ts - start) / dur);
+      p = 1 - Math.pow(1 - p, 3); // easeOutCubic
+      el.textContent = fmt(Math.round(from + (target - from) * p));
+      if (p < 1) requestAnimationFrame(step);
+    }
+    requestAnimationFrame(step);
+  }
+
   function renderStats() {
     var month = $('#stats-month').value || currentMonthStr();
     Promise.all([
@@ -937,9 +978,9 @@
       api('/stats/daily?ledger_id=' + state.currentLedgerId + '&month=' + month),
     ]).then(function (rs) {
       var summary = rs[0], monthly = rs[1], byCat = rs[2], daily = rs[3];
-      $('#stat-income').textContent = fmt(summary.income);
-      $('#stat-expense').textContent = fmt(summary.expense);
-      $('#stat-net').textContent = fmt(summary.net);
+      animateNum($('#stat-income'), summary.income);
+      animateNum($('#stat-expense'), summary.expense);
+      animateNum($('#stat-net'), summary.net);
       $('#stat-count').textContent = summary.record_count + ' 笔';
       var budgetEl = $('#stat-budget');
       if (summary.budget) {
@@ -995,8 +1036,10 @@
       xAxis: { type: 'category', data: monthly.map(function (m) { return m.month.slice(2); }), axisLabel: { color: tc }, axisLine: { lineStyle: { color: ac } } },
       yAxis: { type: 'value', axisLabel: { color: tc }, splitLine: { lineStyle: { color: ac } } },
       series: [
-        { name: '收入', type: 'bar', data: monthly.map(function (m) { return m.income; }), itemStyle: { color: '#16a34a' }, barMaxWidth: 16 },
-        { name: '支出', type: 'bar', data: monthly.map(function (m) { return m.expense; }), itemStyle: { color: '#dc2626' }, barMaxWidth: 16 },
+        { name: '收入', type: 'bar', data: monthly.map(function (m) { return m.income; }), barMaxWidth: 16,
+          itemStyle: { borderRadius: [5,5,0,0], color: { type: 'linear', x: 0, y: 0, x2: 0, y2: 1, colorStops: [{offset:0,color:'#4ade80'},{offset:1,color:'#16a34a'}] } } },
+        { name: '支出', type: 'bar', data: monthly.map(function (m) { return m.expense; }), barMaxWidth: 16,
+          itemStyle: { borderRadius: [5,5,0,0], color: { type: 'linear', x: 0, y: 0, x2: 0, y2: 1, colorStops: [{offset:0,color:'#f87171'},{offset:1,color:'#dc2626'}] } } },
       ],
     }, true);
   }
@@ -1016,12 +1059,24 @@
       textStyle: { color: tc },
       tooltip: { trigger: 'item', valueFormatter: function (v) { return '¥' + (v / 100).toFixed(2); } },
       legend: { type: 'scroll', bottom: 0, textStyle: { color: tc } },
+      title: {
+        text: '总支出',
+        subtext: '¥' + (byCat.reduce(function (s, c) { return s + c.amount; }, 0) / 100).toFixed(2),
+        left: 'center',
+        top: '38%',
+        textStyle: { fontSize: 13, color: tc, fontWeight: 'normal' },
+        subtextStyle: { fontSize: 15, color: tc, fontWeight: 'bold' },
+      },
       series: [{
         type: 'pie',
-        radius: ['38%', '68%'],
+        radius: ['40%', '70%'],
         center: ['50%', '45%'],
         data: data,
         label: { formatter: '{b}\n{d}%', color: tc },
+        itemStyle: { borderRadius: 6, borderColor: '#fff', borderWidth: 2 },
+        emphasis: { scaleSize: 6, itemStyle: { shadowBlur: 14, shadowColor: 'rgba(0,0,0,.25)' } },
+        animationType: 'scale',
+        animationEasing: 'elasticOut',
       }],
     }, true);
   }
@@ -1042,8 +1097,10 @@
       xAxis: { type: 'category', data: daily.map(function (d) { return Number(d.day.slice(8)); }), axisLabel: { color: tc }, axisLine: { lineStyle: { color: ac } } },
       yAxis: { type: 'value', axisLabel: { color: tc }, splitLine: { lineStyle: { color: ac } } },
       series: [
-        { name: '收入', type: 'bar', data: daily.map(function (d) { return d.income; }), itemStyle: { color: '#16a34a' }, barMaxWidth: 10 },
-        { name: '支出', type: 'bar', data: daily.map(function (d) { return d.expense; }), itemStyle: { color: '#dc2626' }, barMaxWidth: 10 },
+        { name: '收入', type: 'bar', data: daily.map(function (d) { return d.income; }), barMaxWidth: 10,
+          itemStyle: { borderRadius: [4,4,0,0], color: { type: 'linear', x: 0, y: 0, x2: 0, y2: 1, colorStops: [{offset:0,color:'#4ade80'},{offset:1,color:'#16a34a'}] } } },
+        { name: '支出', type: 'bar', data: daily.map(function (d) { return d.expense; }), barMaxWidth: 10,
+          itemStyle: { borderRadius: [4,4,0,0], color: { type: 'linear', x: 0, y: 0, x2: 0, y2: 1, colorStops: [{offset:0,color:'#f87171'},{offset:1,color:'#dc2626'}] } } },
       ],
     }, true);
   }
@@ -1460,6 +1517,14 @@
       };
     });
     $('#record-form').onsubmit = submitRecord;
+    // 快捷金额：点击填充金额框
+    document.querySelectorAll('.quick-amounts button').forEach(function (b) {
+      b.onclick = function () {
+        var amt = $('#record-amount');
+        amt.value = b.dataset.amt;
+        amt.focus();
+      };
+    });
     $('#record-cancel').onclick = resetRecordForm;
 
     // 明细筛选
