@@ -1303,6 +1303,8 @@
   var trendView = 'bar'; // bar | line
   function renderStats() {
     var month = $('#stats-month').value || currentMonthStr();
+    // 确保图表库已加载（懒加载）
+    ensureEcharts();
     // 非本月时显示"本月"按钮
     var todayBtn = $('#stats-month-today');
     if (todayBtn) todayBtn.classList.toggle('hidden', month === currentMonthStr());
@@ -1399,12 +1401,25 @@
     return window.matchMedia('(prefers-color-scheme: dark)').matches;
   }
 
+  var echartsLoaded = false;
   function chartBase(el) {
-    if (typeof echarts === 'undefined') {
-      el.innerHTML = '<div class="empty empty-chart">图表库未加载（请检查 vendor/echarts.min.js）</div>';
+    if (typeof echarts === 'undefined' && !echartsLoaded) {
+      el.innerHTML = '<div class="empty empty-chart">图表加载中…</div>';
       return null;
     }
     return echarts.init(el, null, { renderer: 'canvas' });
+  }
+  // 懒加载 echarts（首次进统计页时）
+  function ensureEcharts() {
+    return new Promise(function (resolve) {
+      if (typeof echarts !== 'undefined') { resolve(); return; }
+      if (echartsLoaded) { resolve(); return; }
+      var s = document.createElement('script');
+      s.src = 'vendor/echarts.min.js';
+      s.onload = function () { echartsLoaded = true; resolve(); };
+      s.onerror = function () { resolve(); };
+      document.head.appendChild(s);
+    });
   }
 
   // 图表文字颜色（跟随主题）
@@ -1879,6 +1894,12 @@
 
   // ================= Tab 切换 =================
   function switchTab(name) {
+    // 离开统计页：释放图表（节省内存）
+    if (name !== 'stats' && state.charts) {
+      Object.keys(state.charts).forEach(function (k) {
+        if (state.charts[k]) { state.charts[k].dispose(); state.charts[k] = null; }
+      });
+    }
     document.querySelectorAll('.tabs button').forEach(function (b) {
       b.classList.toggle('active', b.dataset.tab === name);
     });
