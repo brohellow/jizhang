@@ -106,6 +106,9 @@ router.get('/by-category', (req, res) => {
   if (!ledgerId) return;
   const month = monthParam(req);
   const type = req.query.type === 'income' ? 'income' : 'expense';
+  const ck = 'bycat:' + ledgerId + ':' + month + ':' + type;
+  const cached = cacheGet(ck);
+  if (cached) return res.json(cached);
   const rows = db.prepare(`
     SELECT c.id AS category_id, c.name AS category_name, c.icon AS category_icon, SUM(r.amount) AS amount
     FROM records r LEFT JOIN categories c ON c.id = r.category_id
@@ -113,7 +116,7 @@ router.get('/by-category', (req, res) => {
     GROUP BY r.category_id ORDER BY amount DESC
   `).all(ledgerId, type, month);
   const total = rows.reduce(function (s, r) { return s + r.amount; }, 0);
-  res.json(rows.map(function (r) {
+  const out = rows.map(function (r) {
     return {
       category_id: r.category_id,
       category_name: r.category_name,
@@ -121,7 +124,9 @@ router.get('/by-category', (req, res) => {
       amount: r.amount,
       pct: total > 0 ? Math.round((r.amount / total) * 1000) / 10 : 0,
     };
-  }));
+  });
+  cacheSet(ck, out);
+  res.json(out);
 });
 
 // 某月每日收支
@@ -129,6 +134,9 @@ router.get('/daily', (req, res) => {
   const ledgerId = resolveLedger(req, res);
   if (!ledgerId) return;
   const month = monthParam(req);
+  const ck = 'daily:' + ledgerId + ':' + month;
+  const cached = cacheGet(ck);
+  if (cached) return res.json(cached);
   const y = Number(month.slice(0, 4));
   const m = Number(month.slice(5, 7));
   const days = new Date(y, m, 0).getDate();
@@ -147,6 +155,7 @@ router.get('/daily', (req, res) => {
     const a = agg[key] || { income: 0, expense: 0 };
     list.push({ day: key, income: a.income, expense: a.expense });
   }
+  cacheSet(ck, list);
   res.json(list);
 });
 
