@@ -1329,6 +1329,8 @@
     });
     var activeTab = document.querySelector('.tabs button.active');
     if (activeTab && activeTab.dataset.tab === 'stats') renderStats();
+    // 通知背景粒子切换配色
+    try { window.dispatchEvent(new Event('jz-theme-change')); } catch (e) {}
   }
 
   function initTheme() {
