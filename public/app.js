@@ -1113,6 +1113,7 @@
       : api('/records', { method: 'POST', body: body });
     p.then(function () {
       toast(isEdit ? '已保存修改' : '已记一笔 ✅');
+      statsCacheFront = {}; // 新记录影响统计，清缓存
       resetRecordForm();
       loadRecords();
       // 快速连续记账：非编辑时自动聚焦金额框
@@ -1318,6 +1319,7 @@
       if (!ok) return;
       api('/records/' + id, { method: 'DELETE' }).then(function () {
         toast('已删除');
+        statsCacheFront = {};
         loadRecords();
       }).catch(function (e) { toast(e.message); });
     });
