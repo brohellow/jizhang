@@ -1057,7 +1057,7 @@
           '<div class="r-icon ' + cls + '">' + esc(icon) + '</div>' +
           '<div class="r-main">' +
           '<div class="r-name">' + esc(name) + (r.note ? ' · ' + esc(r.note) : '') + '</div>' +
-          '<div class="r-note">' + (r.type === 'income' ? '收入' : '支出') + '</div>' +
+          '<div class="r-note"><span class="r-dot ' + cls + '"></span>' + (r.type === 'income' ? '收入' : '支出') + '</div>' +
           '</div>' +
           '<div class="r-amount ' + cls + '">' + (r.type === 'income' ? '+' : '-') + fmt(r.amount) + '</div>' +
           '<div class="r-actions">' +
@@ -1121,6 +1121,14 @@
   }
 
   // ================= 统计 =================
+  // 大数缩写（统计卡）
+  function fmtBig(cents) {
+    var v = cents / 100;
+    if (v >= 100000000) return (v / 100000000).toFixed(1) + ' 亿';
+    if (v >= 10000) return (v / 10000).toFixed(1) + ' 万';
+    return fmt(cents);
+  }
+
   // 数字滚动动画（尊重系统减少动态效果）
   function animateNum(el, target) {
     if (!el) return;
@@ -1133,10 +1141,12 @@
       p = 1 - Math.pow(1 - p, 3); // easeOutCubic
       el.textContent = fmt(Math.round(from + (target - from) * p));
       if (p < 1) requestAnimationFrame(step);
+      else el.textContent = fmtBig(target);
     }
     requestAnimationFrame(step);
   }
 
+  var trendView = 'bar'; // bar | line
   function renderStats() {
     var month = $('#stats-month').value || currentMonthStr();
     // 加载占位
@@ -1216,14 +1226,19 @@
       grid: { left: 60, right: 20, top: 40, bottom: 30 },
       xAxis: { type: 'category', data: monthly.map(function (m) { return m.month.slice(2); }), axisLabel: { color: tc }, axisLine: { lineStyle: { color: ac } } },
       yAxis: { type: 'value', axisLabel: { color: tc }, splitLine: { lineStyle: { color: ac } } },
-      series: [
-        { name: '收入', type: 'bar', data: monthly.map(function (m) { return m.income; }), barMaxWidth: 16,
-          itemStyle: { borderRadius: [5,5,0,0], color: { type: 'linear', x: 0, y: 0, x2: 0, y2: 1, colorStops: [{offset:0,color:'#4ade80'},{offset:1,color:'#16a34a'}] } },
-          emphasis: { itemStyle: { shadowBlur: 8, shadowColor: 'rgba(34,197,94,.35)' } } },
-        { name: '支出', type: 'bar', data: monthly.map(function (m) { return m.expense; }), barMaxWidth: 16,
-          itemStyle: { borderRadius: [5,5,0,0], color: { type: 'linear', x: 0, y: 0, x2: 0, y2: 1, colorStops: [{offset:0,color:'#f87171'},{offset:1,color:'#dc2626'}] } },
-          emphasis: { itemStyle: { shadowBlur: 8, shadowColor: 'rgba(244,101,107,.35)' } } },
-      ],
+      series: trendView === 'line'
+        ? [
+            { name: '收入', type: 'line', data: monthly.map(function (m) { return m.income; }), smooth: true, symbolSize: 7, lineStyle: { width: 3, color: '#16a34a' }, itemStyle: { color: '#16a34a' }, areaStyle: { opacity: .12, color: '#16a34a' } },
+            { name: '支出', type: 'line', data: monthly.map(function (m) { return m.expense; }), smooth: true, symbolSize: 7, lineStyle: { width: 3, color: '#dc2626' }, itemStyle: { color: '#dc2626' }, areaStyle: { opacity: .1, color: '#dc2626' } },
+          ]
+        : [
+            { name: '收入', type: 'bar', data: monthly.map(function (m) { return m.income; }), barMaxWidth: 16,
+              itemStyle: { borderRadius: [5,5,0,0], color: { type: 'linear', x: 0, y: 0, x2: 0, y2: 1, colorStops: [{offset:0,color:'#4ade80'},{offset:1,color:'#16a34a'}] } },
+              emphasis: { itemStyle: { shadowBlur: 8, shadowColor: 'rgba(34,197,94,.35)' } } },
+            { name: '支出', type: 'bar', data: monthly.map(function (m) { return m.expense; }), barMaxWidth: 16,
+              itemStyle: { borderRadius: [5,5,0,0], color: { type: 'linear', x: 0, y: 0, x2: 0, y2: 1, colorStops: [{offset:0,color:'#f87171'},{offset:1,color:'#dc2626'}] } },
+              emphasis: { itemStyle: { shadowBlur: 8, shadowColor: 'rgba(244,101,107,.35)' } } },
+          ],
     }, true);
   }
 
@@ -1743,7 +1758,10 @@
 
     // AI 聊天
     $('#ai-send').onclick = sendAiMessage;
-    $('#ai-clear-chat').onclick = clearAiChat;
+    $('#ai-clear-chat').onclick = function () {
+      if (aiHistory.length === 0) { toast('对话已是空的'); return; }
+      confirmDialog('确定清空当前对话吗？').then(function (ok) { if (ok) clearAiChat(); });
+    };
     $('#ai-play-story').onclick = playStory;
     $('#ai-play-blind').onclick = playBlind;
     $('#ai-play-save').onclick = playSave;
@@ -1871,6 +1889,18 @@
     }
     $('#stats-month-prev').onclick = function () { shiftMonth(-1); };
     $('#stats-month-next').onclick = function () { shiftMonth(1); };
+    $('#trend-bar').onclick = function () {
+      trendView = 'bar';
+      $('#trend-bar').classList.add('active');
+      $('#trend-line').classList.remove('active');
+      renderStats();
+    };
+    $('#trend-line').onclick = function () {
+      trendView = 'line';
+      $('#trend-line').classList.add('active');
+      $('#trend-bar').classList.remove('active');
+      renderStats();
+    };
     // 预算月份
     $('#budget-month').onchange = renderBudget;
     $('#budget-form').onsubmit = function (e) {

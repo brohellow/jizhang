@@ -241,6 +241,9 @@ input:focus, select:focus { border-color: var(--primary); box-shadow: 0 0 0 3px 
   transform: translateY(-2px);
 }
 .card h2 { font-size: 15px; margin-bottom: 14px; color: var(--text); display: flex; align-items: center; gap: 8px; position: relative; }
+.chart-toggle { float: right; display: inline-flex; gap: 4px; }
+.chart-toggle .btn { padding: 2px 10px; font-size: 12px; }
+.chart-toggle .btn.active { background: var(--primary); color: #fff; border-color: var(--primary); }
 .card h2::after {
   content: '';
   position: absolute;
@@ -629,7 +632,10 @@ main { max-width: 1140px; margin: 0 auto; padding: 20px; }
 }
 .record-item .r-main { flex: 1; min-width: 0; }
 .record-item .r-name { font-weight: 500; }
-.record-item .r-note { color: var(--muted); font-size: 12px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.record-item .r-note { color: var(--muted); font-size: 12px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; display: flex; align-items: center; gap: 4px; }
+.record-item .r-dot { width: 6px; height: 6px; border-radius: 50%; display: inline-block; flex-shrink: 0; }
+.record-item .r-dot.income { background: var(--income); }
+.record-item .r-dot.expense { background: var(--expense); }
 .record-item .r-date { color: var(--muted); font-size: 12px; width: 90px; flex-shrink: 0; }
 .record-item .r-amount { font-weight: 700; font-variant-numeric: tabular-nums; width: 100px; text-align: right; flex-shrink: 0; font-size: 15px; letter-spacing: .2px; }
 .record-item .r-actions { display: flex; gap: 4px; opacity: .55; transition: opacity .15s; }
@@ -743,7 +749,10 @@ main { max-width: 1140px; margin: 0 auto; padding: 20px; }
   align-items: center;
   gap: 20px;
   padding: 10px 4px;
+  transition: background .2s;
+  border-radius: 12px;
 }
+.budget-overall-card:hover { background: var(--hover); }
 .budget-ring {
   position: relative;
   width: 88px; height: 88px;
