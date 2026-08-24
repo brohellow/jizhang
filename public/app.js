@@ -1679,9 +1679,20 @@
   }
 
   // ================= 预算 =================
+  var budgetWarnedMonth = '';
   function renderBudget() {
     var month = $('#budget-month').value || currentMonthStr();
     api('/budgets?ledger_id=' + state.currentLedgerId + '&month=' + month).then(function (data) {
+      // 当月超支提醒（每次进入预算页提示一次）
+      if (month === currentMonthStr() && budgetWarnedMonth !== month && data.items) {
+        var overCount = 0;
+        data.items.forEach(function (it) { if (it.remaining < 0) overCount++; });
+        if (data.overall && data.overall.remaining < 0) overCount++;
+        if (overCount > 0) {
+          budgetWarnedMonth = month;
+          setTimeout(function () { toast('⚠️ ' + overCount + ' 项预算已超支'); }, 500);
+        }
+      }
       var box = $('#budget-overall');
       var html = [];
       html.push('<h3>' + esc(monthLabel(data.month)) + ' 总预算</h3>');
