@@ -47,6 +47,62 @@
   }
 
   var toastTimer = null;
+  // 自定义输入弹窗（替代原生 prompt）
+  function inputDialog(title, placeholder, defaultValue, isText) {
+    return new Promise(function (resolve) {
+      var mask = document.createElement('div');
+      mask.className = 'modal-mask';
+      mask.style.cssText = 'z-index:9999;';
+      var typeAttr = isText ? 'type="text"' : 'type="number" step="0.01" min="0.01"';
+      var phAttr = placeholder ? ' placeholder="' + esc(placeholder) + '"' : '';
+      mask.innerHTML =
+        '<div class="modal" style="max-width:340px;padding:24px;">' +
+        '<div style="font-size:16px;font-weight:700;margin-bottom:14px;">' + esc(title) + '</div>' +
+        '<input ' + typeAttr + ' id="id-input" value="' + esc(String(defaultValue == null ? '' : defaultValue)) + '"' + phAttr + ' style="margin-bottom:14px;">' +
+        '<div style="display:flex;gap:10px;">' +
+        '<button type="button" class="btn ghost" style="flex:1;" id="id-cancel">取消</button>' +
+        '<button type="button" class="btn primary" style="flex:1;" id="id-ok">确定</button>' +
+        '</div></div>';
+      document.body.appendChild(mask);
+      var input = mask.querySelector('#id-input');
+      input.focus();
+      input.select();
+      var done = function (val) {
+        if (mask.parentNode) mask.parentNode.removeChild(mask);
+        resolve(val);
+      };
+      mask.querySelector('#id-ok').onclick = function () { done(input.value); };
+      mask.querySelector('#id-cancel').onclick = function () { done(null); };
+      input.addEventListener('keydown', function (e) { if (e.key === 'Enter') done(input.value); });
+      mask.addEventListener('click', function (e) { if (e.target === mask) done(null); });
+    });
+  }
+
+  // 自定义确认弹窗（替代原生 confirm，视觉统一）
+  function confirmDialog(msg) {
+    return new Promise(function (resolve) {
+      var mask = document.createElement('div');
+      mask.className = 'modal-mask';
+      mask.style.cssText = 'z-index:9999;';
+      mask.innerHTML =
+        '<div class="modal" style="max-width:340px;padding:24px;text-align:center;">' +
+        '<div style="font-size:34px;margin-bottom:10px;">🤔</div>' +
+        '<div style="font-size:15px;margin-bottom:18px;line-height:1.6;">' + msg + '</div>' +
+        '<div style="display:flex;gap:10px;">' +
+        '<button type="button" class="btn ghost" style="flex:1;" id="cf-cancel">取消</button>' +
+        '<button type="button" class="btn danger" style="flex:1;" id="cf-ok">确定</button>' +
+        '</div></div>';
+      document.body.appendChild(mask);
+      var done = function (val) {
+        if (mask.parentNode) mask.parentNode.removeChild(mask);
+        resolve(val);
+      };
+      mask.querySelector('#cf-ok').onclick = function () { done(true); };
+      mask.querySelector('#cf-cancel').onclick = function () { done(false); };
+      mask.addEventListener('click', function (e) { if (e.target === mask) done(false); });
+    });
+  }
+
   function toast(msg) {
     var el = $('#toast');
     // 识别成功/错误类型，加图标
@@ -140,6 +196,11 @@
   }
 
   // ================= 启动 =================
+  function setFooter() {
+    var fv = $('#footer-version');
+    if (fv) fv.textContent = 'v1.0 · ' + new Date().getFullYear();
+  }
+
   function hideSplash() {
     var sp = document.getElementById('splash');
     if (sp) { sp.classList.add('hide'); setTimeout(function () { sp.remove(); }, 600); }
@@ -147,6 +208,7 @@
 
   async function bootApp() {
     hideSplash();
+    setFooter();
     try {
       var me = await api('/auth/me');
       state.user = me.user;
@@ -261,13 +323,15 @@
     box.querySelectorAll('[data-ai-del]').forEach(function (b) {
       b.onclick = function (e) {
         e.stopPropagation();
-        if (!confirm('确定删除该供应商吗？')) return;
-        var id = b.dataset.aiDel.replace('db:', '');
-        api('/ai/providers/' + id, { method: 'DELETE' }).then(function () {
-          toast('已删除');
-          if (aiExpandedId === b.dataset.aiDel) aiExpandedId = null;
-          loadAiSettings();
-        }).catch(function (e) { toast(e.message); });
+        confirmDialog('确定删除该供应商吗？').then(function (ok) {
+          if (!ok) return;
+          var id = b.dataset.aiDel.replace('db:', '');
+          api('/ai/providers/' + id, { method: 'DELETE' }).then(function () {
+            toast('已删除');
+            if (aiExpandedId === b.dataset.aiDel) aiExpandedId = null;
+            loadAiSettings();
+          }).catch(function (e) { toast(e.message); });
+        });
       };
     });
     // 展开卡片内事件
@@ -530,6 +594,11 @@
     var list = $('#ai-chat-list');
     var div = document.createElement('div');
     div.className = 'ai-msg ' + (role === 'user' ? 'ai-user' : 'ai-bot');
+    // 头像
+    var av = document.createElement('div');
+    av.className = 'ai-avatar ' + (role === 'user' ? 'ai-avatar-user' : 'ai-avatar-bot');
+    av.textContent = role === 'user' ? '我' : '🤖';
+    div.appendChild(av);
     var bubble = document.createElement('div');
     bubble.className = 'ai-bubble';
     bubble.innerHTML = esc(text).replace(/\n/g, '<br>');
@@ -542,10 +611,7 @@
     aiHistory = [];
     var list = $('#ai-chat-list');
     list.innerHTML = '';
-    var div = document.createElement('div');
-    div.className = 'ai-msg ai-bot';
-    div.innerHTML = '<div class="ai-bubble">你好！我是 AI 记账助手 🤖<br>对话已清空。可以直接说「今天午饭花了 25 块」帮你记账，也可以问我「这个月花了多少」。</div>';
-    list.appendChild(div);
+    appendAiMsg('bot', '你好！我是 AI 记账助手 🤖<br>对话已清空。可以直接说「今天午饭花了 25 块」帮你记账，也可以问我「这个月花了多少」。');
     updateAiCount();
   }
 
@@ -569,6 +635,9 @@
 
   // 📖 账单故事：拉上月/本月数据 → AI 生成叙事
   function playStory() {
+    var sb = $('#ai-play-story');
+    if (sb) { sb.disabled = true; sb.textContent = '⏳ 生成中…'; }
+    var fin = function () { if (sb) { sb.disabled = false; sb.textContent = '📖 账单故事'; } };
     appendAiMsg('user', '📖 生成我的账单故事');
     appendAiMsg('bot', '正在整理你的账单数据…');
     var last = $('#ai-chat-list .ai-msg:last-child .ai-bubble');
@@ -589,8 +658,9 @@
       })
       .then(function (reply) {
         if (reply) pendingMsg(last, reply);
+        fin();
       })
-      .catch(function (e) { pendingMsg(last, '生成失败：' + e.message); });
+      .catch(function (e) { pendingMsg(last, '生成失败：' + e.message); fin(); });
   }
 
   function buildStoryPrompt(month, data) {
@@ -611,6 +681,9 @@
 
   // 🎁 本周盲盒：拉周报数据 → AI 解读成"盲盒卡"
   function playBlind() {
+    var bb = $('#ai-play-blind');
+    if (bb) { bb.disabled = true; bb.textContent = '⏳ 开盒中…'; }
+    var finb = function () { if (bb) { bb.disabled = false; bb.textContent = '🎁 本周盲盒'; } };
     appendAiMsg('user', '🎁 打开本周盲盒');
     appendAiMsg('bot', '正在准备本周盲盒…');
     var last = $('#ai-chat-list .ai-msg:last-child .ai-bubble');
@@ -626,8 +699,9 @@
       })
       .then(function (reply) {
         if (reply) pendingMsg(last, reply);
+        finb();
       })
-      .catch(function (e) { pendingMsg(last, '盲盒失败：' + e.message); });
+      .catch(function (e) { pendingMsg(last, '盲盒失败：' + e.message); finb(); });
   }
 
   function buildBlindPrompt(data) {
@@ -665,6 +739,7 @@
     var text = input.value.trim();
     if (!text) return;
     input.value = '';
+    input.style.height = 'auto';
     appendAiMsg('user', text);
     appendAiMsg('bot', '<span class="ai-thinking"><i></i><i></i><i></i></span>');
     var sendBtn0 = $('#ai-send');
@@ -701,7 +776,7 @@
       })
       .finally(function () {
         var sendBtn = $('#ai-send');
-        if (sendBtn) { sendBtn.disabled = false; sendBtn.textContent = '发送'; }
+        if (sendBtn) { sendBtn.disabled = false; sendBtn.textContent = '➤ 发送'; }
       });
   }
 
@@ -906,6 +981,7 @@
         document.body.appendChild(a);
         a.click();
         setTimeout(function () { URL.revokeObjectURL(a.href); a.remove(); }, 1000);
+        toast('CSV 已导出 📄');
       })
       .catch(function (e) { toast(e.message); });
   }
@@ -916,7 +992,13 @@
       box.innerHTML = '<div class="empty">暂无记录，记一笔吧 📝</div>';
     } else {
       var html = [];
+      var lastDate = '';
       state.lastItems.forEach(function (r) {
+        // 按日期分组：新日期插入分组标题
+        if (r.record_date !== lastDate) {
+          lastDate = r.record_date;
+          html.push('<div class="record-date-group">' + esc(lastDate) + '</div>');
+        }
         var icon = r.category_icon || '📌';
         var name = r.category_name || '未分类';
         var cls = r.type === 'income' ? 'income' : 'expense';
@@ -927,11 +1009,10 @@
           '<div class="r-name">' + esc(name) + (r.note ? ' · ' + esc(r.note) : '') + '</div>' +
           '<div class="r-note">' + (r.type === 'income' ? '收入' : '支出') + '</div>' +
           '</div>' +
-          '<div class="r-date">' + esc(r.record_date) + '</div>' +
           '<div class="r-amount ' + cls + '">' + (r.type === 'income' ? '+' : '-') + fmt(r.amount) + '</div>' +
           '<div class="r-actions">' +
-          '<button type="button" class="btn ghost sm" data-act="edit" data-id="' + r.id + '">编辑</button>' +
-          '<button type="button" class="btn danger sm" data-act="del" data-id="' + r.id + '">删</button>' +
+          '<button type="button" class="btn ghost sm" data-act="edit" data-id="' + r.id + '" title="编辑">✏️<span class="txt"> 编辑</span></button>' +
+          '<button type="button" class="btn danger sm" data-act="del" data-id="' + r.id + '" title="删除">🗑️<span class="txt"> 删</span></button>' +
           '</div></div>'
         );
       });
@@ -968,17 +1049,25 @@
   }
 
   function deleteRecord(id) {
-    if (!confirm('确定删除这条记录吗？')) return;
-    api('/records/' + id, { method: 'DELETE' }).then(function () {
-      toast('已删除');
-      loadRecords();
-    }).catch(function (e) { toast(e.message); });
+    confirmDialog('确定删除这条记录吗？').then(function (ok) {
+      if (!ok) return;
+      api('/records/' + id, { method: 'DELETE' }).then(function () {
+        toast('已删除');
+        loadRecords();
+      }).catch(function (e) { toast(e.message); });
+    });
   }
 
   function renderTypeToggle() {
     document.querySelectorAll('.type-toggle button').forEach(function (btn) {
       btn.classList.toggle('active', btn.dataset.type === state.recordType);
     });
+    // 表单类型 class（金额框边框联动）
+    var form = document.getElementById('record-form');
+    if (form) {
+      form.classList.toggle('record-form-expense', state.recordType === 'expense');
+      form.classList.toggle('record-form-income', state.recordType === 'income');
+    }
   }
 
   // ================= 统计 =================
@@ -1000,6 +1089,9 @@
 
   function renderStats() {
     var month = $('#stats-month').value || currentMonthStr();
+    // 加载占位
+    var trendEl = $('#chart-trend');
+    if (trendEl && !trendEl.innerHTML) trendEl.innerHTML = '<div class="empty">加载中…</div>';
     Promise.all([
       api('/stats/summary?ledger_id=' + state.currentLedgerId + '&month=' + month),
       api('/stats/monthly?ledger_id=' + state.currentLedgerId + '&months=12'),
@@ -1151,16 +1243,27 @@
         var pct = data.overall.amount > 0 ? Math.round((data.overall.spent / data.overall.amount) * 100) : 0;
         var cls = pct > 100 ? 'over' : (pct > 80 ? 'warn' : '');
         var pctText = data.overall.amount > 0 ? pct + '%' : '--';
+        var ringColor = cls === 'over' ? 'var(--expense)' : cls === 'warn' ? 'var(--amber)' : 'var(--primary)';
+        var ringPct = Math.min(100, pct);
+        var circum = 2 * Math.PI * 40;
+        var dash = circum * ringPct / 100;
         html.push(
-          '<div class="budget-item">' +
-          '<div class="b-icon">💰</div>' +
-          '<div class="b-main">' +
-          '<div class="progress ' + cls + '"><div style="width:' + Math.min(100, pct) + '%"></div></div>' +
-          '<div class="b-info">已支出 ' + fmt(data.overall.spent) + ' / 预算 ' + fmt(data.overall.amount) + '（' + pctText + '）' +
-          (data.overall.remaining >= 0 ? '，剩余 ' + fmt(data.overall.remaining) : '，已超支 ' + fmt(-data.overall.remaining)) + '</div>' +
+          '<div class="budget-overall-card">' +
+          '<div class="budget-ring" style="--ring-color:' + ringColor + '">' +
+          '<svg viewBox="0 0 100 100" width="88" height="88">' +
+          '<circle cx="50" cy="50" r="40" fill="none" stroke="var(--soft-bg-2)" stroke-width="9"/>' +
+          '<circle cx="50" cy="50" r="40" fill="none" stroke="var(--ring-color)" stroke-width="9" stroke-linecap="round" stroke-dasharray="' + dash + ' ' + circum + '" transform="rotate(-90 50 50)"/>' +
+          '</svg>' +
+          '<div class="ring-text">' + pctText + '</div>' +
           '</div>' +
+          '<div class="budget-ring-main">' +
+          '<div class="b-info">已支出 ' + fmt(data.overall.spent) + ' / 预算 ' + fmt(data.overall.amount) + '</div>' +
+          (data.overall.remaining >= 0 ? '<div class="b-info ok">✅ 剩余 ' + fmt(data.overall.remaining) + '</div>' : '<div class="b-info over">⚠️ 已超支 ' + fmt(-data.overall.remaining) + '</div>') +
+          '<div class="budget-ring-actions">' +
           '<button type="button" class="btn ghost sm" data-act="edit-overall">调整</button>' +
           '<button type="button" class="btn danger sm" data-act="del" data-id="' + data.overall.id + '">删</button>' +
+          '</div>' +
+          '</div>' +
           '</div>'
         );
       } else {
@@ -1175,9 +1278,10 @@
       var editBtn = box.querySelector('[data-act="edit-overall"]');
       if (editBtn) {
         editBtn.onclick = function () {
-          var v = prompt('调整本月总预算（元）', (data.overall.amount / 100).toFixed(2));
-          if (v === null) return;
-          saveBudget(null, v, data.month);
+          inputDialog('调整本月总预算（元）', '金额', (data.overall.amount / 100).toFixed(2)).then(function (v) {
+            if (v === null || v === '') return;
+            saveBudget(null, v, data.month);
+          });
         };
       }
       var delBtn = box.querySelector('[data-act="del"]');
@@ -1198,7 +1302,7 @@
           var pct = it.amount > 0 ? Math.round((it.spent / it.amount) * 100) : 0;
           var cls = pct > 100 ? 'over' : (pct > 80 ? 'warn' : '');
           html2.push(
-            '<div class="budget-item">' +
+            '<div class="budget-item' + (cls === 'over' ? ' budget-over' : '') + '">' +
             '<div class="b-icon">' + esc(it.category_icon || '📌') + '</div>' +
             '<div class="b-main">' +
             '<div class="b-name">' + esc(it.category_name) + '</div>' +
@@ -1215,8 +1319,10 @@
         listBox.querySelectorAll('button[data-act]').forEach(function (btn) {
           btn.onclick = function () {
             if (btn.dataset.act === 'edit') {
-              var v = prompt('调整预算（元）', (Number(btn.dataset.amount) / 100).toFixed(2));
-              if (v !== null) saveBudget(Number(btn.dataset.cat), v, data.month);
+              inputDialog('调整预算（元）', '金额', (Number(btn.dataset.amount) / 100).toFixed(2)).then(function (v) {
+                if (v === null || v === '') return;
+                saveBudget(Number(btn.dataset.cat), v, data.month);
+              });
             } else {
               deleteBudget(Number(btn.dataset.id));
             }
@@ -1240,11 +1346,13 @@
   }
 
   function deleteBudget(id) {
-    if (!confirm('确定删除该预算吗？')) return;
-    api('/budgets/' + id, { method: 'DELETE' }).then(function () {
-      toast('已删除');
-      renderBudget();
-    }).catch(function (e) { toast(e.message); });
+    confirmDialog('确定删除该预算吗？').then(function (ok) {
+      if (!ok) return;
+      api('/budgets/' + id, { method: 'DELETE' }).then(function () {
+        toast('已删除');
+        renderBudget();
+      }).catch(function (e) { toast(e.message); });
+    });
   }
 
   // ================= 账本 =================
@@ -1294,20 +1402,23 @@
     var l = null;
     state.ledgers.forEach(function (x) { if (x.id === id) l = x; });
     if (!l) return;
-    var name = prompt('账本新名称', l.name);
-    if (name === null || !name.trim()) return;
-    api('/ledgers/' + id, { method: 'PUT', body: { name: name.trim() } }).then(function () {
-      toast('已重命名');
-      refreshAll();
-    }).catch(function (e) { toast(e.message); });
+    inputDialog('账本新名称', '输入名称', l.name, true).then(function (name) {
+      if (name === null || !name.trim()) return;
+      api('/ledgers/' + id, { method: 'PUT', body: { name: name.trim() } }).then(function () {
+        toast('已重命名');
+        refreshAll();
+      }).catch(function (e) { toast(e.message); });
+    });
   }
 
   function deleteLedger(id) {
-    if (!confirm('确定删除该账本吗？其所有记录和预算将一并删除！')) return;
-    api('/ledgers/' + id, { method: 'DELETE' }).then(function () {
-      toast('账本已删除');
-      refreshAll();
-    }).catch(function (e) { toast(e.message); });
+    confirmDialog('确定删除该账本吗？<br>其所有记录和预算将一并删除！').then(function (ok) {
+      if (!ok) return;
+      api('/ledgers/' + id, { method: 'DELETE' }).then(function () {
+        toast('账本已删除');
+        refreshAll();
+      }).catch(function (e) { toast(e.message); });
+    });
   }
 
   function refreshAfterLedgerChange() {
@@ -1371,32 +1482,37 @@
     var c = null;
     state.categories.forEach(function (x) { if (x.id === id) c = x; });
     if (!c) return;
-    var name = prompt('分类新名称', c.name);
-    if (name === null || !name.trim()) return;
-    var icon = prompt('分类图标（emoji，可留空）', c.icon || '');
-    api('/categories/' + id, { method: 'PUT', body: { name: name.trim(), icon: icon } }).then(function () {
-      toast('已保存');
-      return loadCategories();
-    }).then(function () {
-      renderCategoryPicker();
-      fillCategoryFilter();
-      fillBudgetCategory();
-      renderCategories();
-    }).catch(function (e) { toast(e.message); });
+    inputDialog('分类新名称', '输入名称', c.name, true).then(function (name) {
+      if (name === null || !name.trim()) return;
+      inputDialog('分类图标（emoji，可留空）', '输入 emoji', c.icon || '', true).then(function (icon) {
+        if (icon === null) return;
+        api('/categories/' + id, { method: 'PUT', body: { name: name.trim(), icon: icon } }).then(function () {
+          toast('已保存');
+          return loadCategories();
+        }).then(function () {
+          renderCategoryPicker();
+          fillCategoryFilter();
+          fillBudgetCategory();
+          renderCategories();
+        }).catch(function (e) { toast(e.message); });
+      });
+    });
   }
 
   function deleteCategory(id) {
-    if (!confirm('确定删除该分类吗？')) return;
-    api('/categories/' + id, { method: 'DELETE' }).then(function () {
-      toast('已删除');
-      return loadCategories();
-    }).then(function () {
-      renderCategoryPicker();
-      fillCategoryFilter();
-      fillBudgetCategory();
-      renderCategories();
-      loadRecords();
-    }).catch(function (e) { toast(e.message); });
+    confirmDialog('确定删除该分类吗？').then(function (ok) {
+      if (!ok) return;
+      api('/categories/' + id, { method: 'DELETE' }).then(function () {
+        toast('已删除');
+        return loadCategories();
+      }).then(function () {
+        renderCategoryPicker();
+        fillCategoryFilter();
+        fillBudgetCategory();
+        renderCategories();
+        loadRecords();
+      }).catch(function (e) { toast(e.message); });
+    });
   }
 
   // ================= 主题切换 =================
@@ -1460,19 +1576,36 @@
   // ================= 事件绑定 =================
   function bindEvents() {
     // 登录/注册
+    function switchLoginForm(showLoginForm) {
+      var lf = $('#login-form'), rf = $('#register-form');
+      var hide = showLoginForm ? rf : lf;
+      var show = showLoginForm ? lf : rf;
+      // 动画：先淡出当前，再淡入目标
+      hide.style.opacity = '0';
+      hide.style.transform = 'translateY(6px)';
+      setTimeout(function () {
+        hide.classList.add('hidden');
+        show.classList.remove('hidden');
+        show.style.opacity = '0';
+        show.style.transform = 'translateY(6px)';
+        requestAnimationFrame(function () {
+          show.style.transition = 'opacity .25s ease, transform .25s ease';
+          show.style.opacity = '1';
+          show.style.transform = 'translateY(0)';
+        });
+      }, 140);
+    }
     $('#tab-login').onclick = function () {
       $('#tab-login').classList.add('active');
       $('#tab-register').classList.remove('active');
-      $('#login-form').classList.remove('hidden');
-      $('#register-form').classList.add('hidden');
       $('#login-hint').textContent = '';
+      switchLoginForm(true);
     };
     $('#tab-register').onclick = function () {
       $('#tab-register').classList.add('active');
       $('#tab-login').classList.remove('active');
-      $('#register-form').classList.remove('hidden');
-      $('#login-form').classList.add('hidden');
       $('#login-hint').textContent = '';
+      switchLoginForm(false);
     };
     $('#login-form').onsubmit = function (e) {
       e.preventDefault();
@@ -1516,8 +1649,15 @@
     $('#ai-play-story').onclick = playStory;
     $('#ai-play-blind').onclick = playBlind;
     $('#ai-play-save').onclick = playSave;
-    $('#ai-chat-input').onkeydown = function (e) {
-      if (e.key === 'Enter') { e.preventDefault(); sendAiMessage(); }
+    var aiInput = $('#ai-chat-input');
+    var aiAutoGrow = function () {
+      aiInput.style.height = 'auto';
+      aiInput.style.height = Math.min(120, aiInput.scrollHeight) + 'px';
+    };
+    aiInput.addEventListener('input', aiAutoGrow);
+    aiInput.onkeydown = function (e) {
+      if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); sendAiMessage(); }
+      else if (e.key === 'Enter' && e.shiftKey) { setTimeout(aiAutoGrow, 0); }
     };
 
     // 退出

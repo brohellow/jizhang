@@ -136,7 +136,7 @@
             </div>
             <div class="row">
               <input type="date" id="record-date">
-              <input type="number" id="record-amount" placeholder="金额（元）" min="0.01" step="0.01" inputmode="decimal">
+              <div class="amount-wrap"><span class="amount-prefix">¥</span><input type="number" id="record-amount" placeholder="0.00" min="0.01" step="0.01" inputmode="decimal"></div>
             </div>
             <div class="quick-amounts">
               <button type="button" data-amt="10">10</button>
@@ -257,6 +257,7 @@
       <div class="card ai-card">
         <div id="ai-chat-list" class="ai-chat-list">
           <div class="ai-msg ai-bot">
+            <div class="ai-avatar ai-avatar-bot">🤖</div>
             <div class="ai-bubble">你好！我是 AI 记账助手 🤖<br>可以直接说「今天午饭花了 25 块」帮你记账，也可以问我「这个月花了多少」「分析一下消费习惯」。</div>
           </div>
         </div>
@@ -272,8 +273,8 @@
           <button type="button" class="btn ghost sm" id="ai-play-save" title="攒钱模拟器">💰 攒钱模拟</button>
         </div>
         <div class="ai-chat-input">
-          <input type="text" id="ai-chat-input" placeholder="说点什么…（如：昨天打车花了 18 元）" autocomplete="off">
-          <button type="button" id="ai-send" class="btn primary">发送</button>
+          <textarea id="ai-chat-input" placeholder="说点什么…（如：昨天打车花了 18 元）" rows="1"></textarea>
+          <button type="button" id="ai-send" class="btn primary">➤ 发送</button>
         </div>
         <div class="ai-chat-tips muted">提示：先去「个人中心 → AI 设置」添加供应商并填写 Key</div>
       </div>
