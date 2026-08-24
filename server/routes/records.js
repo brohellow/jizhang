@@ -1,5 +1,6 @@
 import { Router } from 'express';
 import { db } from '../db.js';
+import { cacheInvalidate } from './stats.js';
 import { requireAuth } from '../auth.js';
 import { todayStr, yuanToCents } from '../util.js';
 
@@ -162,6 +163,7 @@ router.get('/', (req, res) => {
 
 // 新增记录
 router.post('/', (req, res) => {
+  cacheInvalidate();
   const v = validateRecord(req.body || {}, req.user.id, res);
   if (!v) return;
   const info = db.prepare(`
@@ -173,6 +175,7 @@ router.post('/', (req, res) => {
 
 // 编辑记录
 router.put('/:id', (req, res) => {
+  cacheInvalidate();
   const id = Number(req.params.id);
   const old = db.prepare('SELECT * FROM records WHERE id = ? AND user_id = ?').get(id, req.user.id);
   if (!old) return res.status(404).json({ error: '记录不存在' });
@@ -187,6 +190,7 @@ router.put('/:id', (req, res) => {
 
 // 删除记录
 router.delete('/:id', (req, res) => {
+  cacheInvalidate();
   const id = Number(req.params.id);
   const old = db.prepare('SELECT * FROM records WHERE id = ? AND user_id = ?').get(id, req.user.id);
   if (!old) return res.status(404).json({ error: '记录不存在' });

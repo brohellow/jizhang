@@ -6,6 +6,22 @@ import { currentMonthStr } from '../util.js';
 const router = Router();
 router.use(requireAuth);
 
+// ===== 简单内存缓存（统计接口 5 秒，写操作时清空） =====
+const statsCache = new Map(); // key -> { t, data }
+const CACHE_TTL = 5000;
+function cacheGet(key) {
+  const hit = statsCache.get(key);
+  if (hit && Date.now() - hit.t < CACHE_TTL) return hit.data;
+  return null;
+}
+function cacheSet(key, data) {
+  statsCache.set(key, { t: Date.now(), data });
+}
+function cacheInvalidate() {
+  statsCache.clear();
+}
+export { cacheInvalidate };
+
 const MONTH_RE = /^\d{4}-\d{2}$/;
 
 function resolveLedger(req, res) {
@@ -31,6 +47,9 @@ router.get('/summary', (req, res) => {
   const ledgerId = resolveLedger(req, res);
   if (!ledgerId) return;
   const month = monthParam(req);
+  const ck = 'summary:' + ledgerId + ':' + month;
+  const cached = cacheGet(ck);
+  if (cached) return res.json(cached);
   const agg = db.prepare(`
     SELECT type, COALESCE(SUM(amount), 0) AS s, COUNT(*) AS c
     FROM records WHERE ledger_id = ? AND substr(record_date, 1, 7) = ? GROUP BY type
@@ -43,7 +62,7 @@ router.get('/summary', (req, res) => {
   const budgetRow = db.prepare('SELECT amount FROM budgets WHERE ledger_id = ? AND month = ? AND category_id IS NULL')
     .get(ledgerId, month);
   const budget = budgetRow ? budgetRow.amount : null;
-  res.json({
+  const out = {
     month,
     income,
     expense,
@@ -52,7 +71,9 @@ router.get('/summary', (req, res) => {
     budget_spent: expense,
     budget_pct: budget ? Math.round((expense / budget) * 1000) / 10 : null,
     record_count: count,
-  });
+  };
+  cacheSet(ck, out);
+  res.json(out);
 });
 
 // 近 N 个月收支趋势（默认 12 个月）
