@@ -462,7 +462,18 @@ router.post('/chat', async (req, res) => {
       stream: false,
     };
     const headers = { 'Content-Type': 'application/json', Authorization: 'Bearer ' + target.api_key };
-    const resp = await fetch(url, { method: 'POST', headers: headers, body: JSON.stringify(body) });
+    // 90 秒超时兜底（防上游挂起）
+    const ctrl = new AbortController();
+    const timer = setTimeout(function () { ctrl.abort(); }, 90000);
+    let resp;
+    try {
+      resp = await fetch(url, { method: 'POST', headers: headers, body: JSON.stringify(body), signal: ctrl.signal });
+    } catch (e) {
+      clearTimeout(timer);
+      if (e.name === 'AbortError') return res.status(504).json({ error: 'AI 接口超时（90秒），请重试' });
+      return res.status(502).json({ error: 'AI 接口网络错误: ' + e.message });
+    }
+    clearTimeout(timer);
     if (!resp.ok) {
       const txt = await resp.text().catch(function () { return ''; });
       return res.status(502).json({ error: 'AI 接口调用失败 (' + resp.status + '): ' + txt.slice(0, 300) });
