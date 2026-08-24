@@ -12,6 +12,12 @@ export const db = new DatabaseSync(path.join(dataDir, 'jizhang.db'));
 
 db.exec('PRAGMA journal_mode = WAL;');
 db.exec('PRAGMA foreign_keys = ON;');
+// ===== 性能 PRAGMA =====
+db.exec('PRAGMA busy_timeout = 5000;');        // 写锁等待 5 秒，避免 SQLITE_BUSY
+db.exec('PRAGMA synchronous = NORMAL;');        // WAL 下 NORMAL 足够安全且更快
+db.exec('PRAGMA cache_size = -16000;');         // 16MB 页缓存
+db.exec('PRAGMA temp_store = MEMORY;');         // 临时表/排序走内存
+db.exec('PRAGMA wal_autocheckpoint = 1000;');   // WAL 自动检查点
 
 db.exec(`
 CREATE TABLE IF NOT EXISTS users (
@@ -53,6 +59,10 @@ CREATE TABLE IF NOT EXISTS records (
   created_at TEXT NOT NULL DEFAULT (datetime('now','localtime'))
 );
 CREATE INDEX IF NOT EXISTS idx_records_lookup ON records(ledger_id, record_date, type);
+CREATE INDEX IF NOT EXISTS idx_records_user ON records(user_id, record_date);
+CREATE INDEX IF NOT EXISTS idx_records_category ON records(category_id, record_date);
+CREATE INDEX IF NOT EXISTS idx_records_type_date ON records(type, record_date);
+CREATE INDEX IF NOT EXISTS idx_budgets_month ON budgets(ledger_id, month);
 CREATE TABLE IF NOT EXISTS budgets (
   id INTEGER PRIMARY KEY AUTOINCREMENT,
   user_id INTEGER NOT NULL REFERENCES users(id) ON DELETE CASCADE,

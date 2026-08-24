@@ -85,8 +85,9 @@ router.get('/export', (req, res) => {
     params.push(req.query.to);
   }
   if (req.query.keyword) {
-    where.push('r.note LIKE ?');
-    params.push('%' + req.query.keyword + '%');
+    var kw = String(req.query.keyword).replace(/[%_\\]/g, function (m) { return '\\' + m; });
+    where.push("r.note LIKE ? ESCAPE '\\'");
+    params.push('%' + kw + '%');
   }
   const whereSql = 'WHERE ' + where.join(' AND ');
   const rows = db.prepare(`
@@ -143,8 +144,9 @@ router.get('/', (req, res) => {
     params.push(req.query.to);
   }
   if (req.query.keyword) {
-    where.push('r.note LIKE ?');
-    params.push('%' + req.query.keyword + '%');
+    var kw = String(req.query.keyword).replace(/[%_\\]/g, function (m) { return '\\' + m; });
+    where.push("r.note LIKE ? ESCAPE '\\'");
+    params.push('%' + kw + '%');
   }
   const whereSql = 'WHERE ' + where.join(' AND ');
   const total = db.prepare('SELECT COUNT(*) AS c FROM records r ' + whereSql).get(...params).c;
