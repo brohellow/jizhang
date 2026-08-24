@@ -735,6 +735,8 @@
     });
     div.appendChild(bubble);
     list.appendChild(div);
+    // 消息上限：保留最近 100 条（防 DOM 无限增长）
+    while (list.children.length > 100) list.removeChild(list.firstChild);
     list.scrollTop = list.scrollHeight;
   }
 
