@@ -18,6 +18,18 @@ const app = express();
 
 app.use(express.json({ limit: '512kb' })); // 限制请求体大小，防超大 JSON
 
+// ===== 慢请求监控（>500ms 记日志，定位性能瓶颈） =====
+app.use((req, res, next) => {
+  const start = Date.now();
+  res.on('finish', () => {
+    const ms = Date.now() - start;
+    if (ms > 500) {
+      console.log('[slow] ' + req.method + ' ' + req.path + ' ' + ms + 'ms');
+    }
+  });
+  next();
+});
+
 // ===== 安全响应头 =====
 app.use((req, res, next) => {
   res.setHeader('X-Content-Type-Options', 'nosniff');
