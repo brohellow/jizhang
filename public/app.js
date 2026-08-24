@@ -111,7 +111,15 @@
           localStorage.setItem('jz_username', data.user.username || '');
           localStorage.setItem('jz_nickname', data.user.nickname || '');
         }
-        bootApp();
+        // 登录成功过渡：卡片淡出 → 主界面淡入
+        var lv = $('#login-view');
+        if (lv && !(window.matchMedia && window.matchMedia('(prefers-reduced-motion: reduce)').matches)) {
+          lv.style.transition = 'opacity .35s ease';
+          lv.style.opacity = '0';
+          setTimeout(function () { bootApp(); }, 320);
+        } else {
+          bootApp();
+        }
       })
       .catch(function (e) { $('#login-hint').textContent = e.message; });
   }
@@ -171,6 +179,14 @@
     $('#profile-old-password').value = '';
     $('#profile-new-password').value = '';
     $('#profile-confirm-password').value = '';
+    // 头像卡
+    var av = $('#pm-avatar');
+    var initial = (u.nickname || u.username || '?').charAt(0).toUpperCase();
+    if (av) av.textContent = initial;
+    var nm = $('#pm-user-name');
+    if (nm) nm.textContent = (u.nickname || u.username || '未命名') + (u.nickname ? ' 👋' : '');
+    var sub = $('#pm-user-sub');
+    if (sub) sub.textContent = (u.username || '') + ' · 加入于 ' + (u.created_at ? u.created_at.slice(0, 10) : '—');
     $('#profile-modal').classList.remove('hidden');
     switchPmPanel('profile');
   }
@@ -1030,7 +1046,7 @@
     var tc = chartTextColor(), ac = chartAxisColor();
     state.charts.trend.setOption({
       textStyle: { color: tc },
-      tooltip: { trigger: 'axis', valueFormatter: function (v) { return '¥' + (v / 100).toFixed(2); } },
+      tooltip: { trigger: 'axis', valueFormatter: function (v) { return '¥' + (v / 100).toFixed(2); }, backgroundColor: isDarkTheme() ? '#2a2f3a' : '#fff', borderColor: 'rgba(0,0,0,.08)', textStyle: { color: tc, fontSize: 12 }, extraCssText: 'box-shadow:0 6px 20px rgba(0,0,0,.12);border-radius:10px;padding:8px 12px;' },
       legend: { data: ['收入', '支出'], textStyle: { color: tc } },
       grid: { left: 60, right: 20, top: 40, bottom: 30 },
       xAxis: { type: 'category', data: monthly.map(function (m) { return m.month.slice(2); }), axisLabel: { color: tc }, axisLine: { lineStyle: { color: ac } } },
@@ -1046,6 +1062,12 @@
 
   function pieChart(byCat) {
     var el = $('#chart-pie');
+    // 空数据：显示引导
+    if (!byCat || byCat.length === 0) {
+      if (state.charts.pie) { state.charts.pie.dispose(); state.charts.pie = null; }
+      el.innerHTML = '<div class="empty">本月暂无支出，先去记一笔吧 💸</div>';
+      return;
+    }
     if (!state.charts.pie) {
       var chart = chartBase(el);
       if (!chart) return;
@@ -1057,7 +1079,7 @@
     var tc = chartTextColor();
     state.charts.pie.setOption({
       textStyle: { color: tc },
-      tooltip: { trigger: 'item', valueFormatter: function (v) { return '¥' + (v / 100).toFixed(2); } },
+      tooltip: { trigger: 'item', valueFormatter: function (v) { return '¥' + (v / 100).toFixed(2); }, backgroundColor: isDarkTheme() ? '#2a2f3a' : '#fff', borderColor: 'rgba(0,0,0,.08)', textStyle: { color: tc, fontSize: 12 }, extraCssText: 'box-shadow:0 6px 20px rgba(0,0,0,.12);border-radius:10px;padding:8px 12px;' },
       legend: { type: 'scroll', bottom: 0, textStyle: { color: tc } },
       title: {
         text: '总支出',
@@ -1091,7 +1113,7 @@
     var tc = chartTextColor(), ac = chartAxisColor();
     state.charts.daily.setOption({
       textStyle: { color: tc },
-      tooltip: { trigger: 'axis', valueFormatter: function (v) { return '¥' + (v / 100).toFixed(2); } },
+      tooltip: { trigger: 'axis', valueFormatter: function (v) { return '¥' + (v / 100).toFixed(2); }, backgroundColor: isDarkTheme() ? '#2a2f3a' : '#fff', borderColor: 'rgba(0,0,0,.08)', textStyle: { color: tc, fontSize: 12 }, extraCssText: 'box-shadow:0 6px 20px rgba(0,0,0,.12);border-radius:10px;padding:8px 12px;' },
       legend: { data: ['收入', '支出'], textStyle: { color: tc } },
       grid: { left: 60, right: 20, top: 40, bottom: 30 },
       xAxis: { type: 'category', data: daily.map(function (d) { return Number(d.day.slice(8)); }), axisLabel: { color: tc }, axisLine: { lineStyle: { color: ac } } },
@@ -1222,9 +1244,10 @@
     state.ledgers.forEach(function (l) {
       var isCurrent = l.id === state.currentLedgerId;
       html.push(
-        '<div class="ledger-item">' +
+        '<div class="ledger-item' + (isCurrent ? ' current' : '') + '">' +
+        '<div class="l-icon">📒</div>' +
         '<div class="l-main">' +
-        '<div class="l-name">' + esc(l.name) + (isCurrent ? ' <span class="muted">（当前）</span>' : '') + '</div>' +
+        '<div class="l-name">' + esc(l.name) + (isCurrent ? ' <span class="l-badge">当前</span>' : '') + '</div>' +
         '<div class="l-meta">' + (l.record_count || 0) + ' 条记录 · ' + (l.currency || 'CNY') + (l.description ? ' · ' + esc(l.description) : '') + '</div>' +
         '</div>' +
         (isCurrent

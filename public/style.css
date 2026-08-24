@@ -205,7 +205,8 @@ input:focus, select:focus { border-color: var(--primary); box-shadow: 0 0 0 3px 
 }
 .card h2 { font-size: 15px; margin-bottom: 14px; color: var(--text); display: flex; align-items: center; gap: 8px; }
 .card h3 { font-size: 14px; margin: 14px 0 8px; color: var(--muted); font-weight: 600; }
-.grid-2 { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; }
+.grid-2 { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; align-items: start; }
+.grid-2 .card:first-child { position: sticky; top: 110px; }
 .row { display: flex; gap: 8px; margin-bottom: 10px; }
 .row input { flex: 1; }
 .filter-bar {
@@ -479,7 +480,16 @@ main { max-width: 1100px; margin: 0 auto; padding: 20px; }
   0%, 100% { opacity: .55; }
   50% { opacity: .9; }
 }
-.pager { display: flex; align-items: center; justify-content: center; gap: 12px; margin-top: 12px; color: var(--muted); font-size: 13px; }
+.pager { display: flex; align-items: center; justify-content: center; gap: 12px; margin-top: 14px; color: var(--muted); font-size: 13px; }
+#page-info {
+  background: var(--soft-bg);
+  padding: 4px 14px;
+  border-radius: 99px;
+  font-variant-numeric: tabular-nums;
+}
+.pager button { transition: all .15s; }
+.pager button:hover:not(:disabled) { border-color: var(--primary); color: var(--primary-dark); }
+.pager button:disabled { opacity: .4; cursor: not-allowed; }
 
 /* ---------- 统计页 ---------- */
 .stat-cards { display: grid; grid-template-columns: repeat(auto-fit, minmax(150px, 1fr)); gap: 12px; }
@@ -536,11 +546,20 @@ main { max-width: 1100px; margin: 0 auto; padding: 20px; }
   display: flex;
   align-items: center;
   gap: 10px;
-  padding: 8px 0;
+  padding: 9px 8px;
   border-bottom: 1px solid var(--divider);
+  border-radius: 8px;
+  transition: background .15s, transform .15s;
 }
 .budget-item:last-child { border-bottom: none; }
-.budget-item .b-icon { font-size: 18px; }
+.budget-item:hover { background: var(--hover); transform: translateX(2px); }
+.budget-item .b-icon {
+  font-size: 17px;
+  width: 32px; height: 32px;
+  display: flex; align-items: center; justify-content: center;
+  background: var(--soft-bg);
+  border-radius: 9px;
+}
 .budget-item .b-main { flex: 1; }
 .budget-item .b-info { font-size: 12px; color: var(--muted); }
 .budget-item .b-amount { font-weight: 600; font-variant-numeric: tabular-nums; }
@@ -551,12 +570,32 @@ main { max-width: 1100px; margin: 0 auto; padding: 20px; }
   display: flex;
   align-items: center;
   gap: 10px;
-  padding: 10px 6px;
+  padding: 11px 8px;
   border-bottom: 1px solid var(--divider);
+  border-radius: 10px;
+  transition: background .15s, transform .15s;
 }
 .ledger-item:last-child { border-bottom: none; }
+.ledger-item:hover { background: var(--hover); transform: translateX(2px); }
+.ledger-item.current { background: var(--primary-soft); }
+.ledger-item .l-icon {
+  font-size: 18px;
+  width: 34px; height: 34px;
+  display: flex; align-items: center; justify-content: center;
+  background: var(--soft-bg);
+  border-radius: 10px;
+}
 .ledger-item .l-main { flex: 1; }
 .ledger-item .l-name { font-weight: 600; }
+.ledger-item .l-badge {
+  background: var(--primary);
+  color: #fff;
+  font-size: 11px;
+  padding: 1px 8px;
+  border-radius: 99px;
+  margin-left: 4px;
+  vertical-align: 1px;
+}
 .ledger-item .l-meta { font-size: 12px; color: var(--muted); }
 .cat-cols { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; }
 .cat-item { display: flex; align-items: center; gap: 8px; padding: 7px 8px; border-bottom: 1px solid var(--divider); border-radius: 8px; transition: background .15s, transform .15s; }
@@ -814,6 +853,29 @@ main { max-width: 1100px; margin: 0 auto; padding: 20px; }
   .modal-split-main { height: auto; flex: 1; }
 }
 
+.pm-user-card {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  padding: 18px 14px;
+  margin-bottom: 16px;
+  background: linear-gradient(135deg, var(--primary-soft), transparent);
+  border-radius: 14px;
+  border: 1px solid var(--border);
+}
+.pm-avatar {
+  width: 56px; height: 56px;
+  border-radius: 50%;
+  background: linear-gradient(135deg, var(--primary), var(--expense));
+  color: #fff;
+  font-size: 26px;
+  font-weight: 700;
+  display: flex; align-items: center; justify-content: center;
+  box-shadow: 0 4px 16px rgba(79,125,249,.35);
+  flex-shrink: 0;
+}
+.pm-user-name { font-size: 18px; font-weight: 700; }
+.pm-user-sub { font-size: 12px; color: var(--muted); margin-top: 3px; }
 .profile-row {
   display: flex;
   align-items: center;
@@ -910,8 +972,12 @@ main { max-width: 1100px; margin: 0 auto; padding: 20px; }
    ============================================================ */
 
 /* --- 页面容器：为动效提供上下文 --- */
-#app-view { position: relative; }
+#app-view { position: relative; animation: appIn .4s ease both; }
 #login-view { position: relative; }
+@keyframes appIn {
+  from { opacity: 0; transform: translateY(8px); }
+  to   { opacity: 1; transform: translateY(0); }
+}
 
 /* --- 登录页：入场动画 + 细腻光晕 --- */
 .login-card {
