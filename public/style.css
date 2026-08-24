@@ -1465,6 +1465,15 @@ main { max-width: 1140px; margin: 0 auto; padding: 20px; }
   background: var(--soft-bg);
   border-radius: 6px;
 }
+.ai-money {
+  color: var(--primary-dark);
+  font-weight: 700;
+  font-variant-numeric: tabular-nums;
+  padding: 0 2px;
+  border-radius: 3px;
+  background: rgba(79,125,249,.08);
+}
+:root[data-theme="dark"] .ai-money { color: #8ab4ff; }
 .ai-suggest {
   display: inline-block;
   margin-top: 6px;

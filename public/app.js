@@ -663,11 +663,13 @@
     });
   }
 
-  // AI 文本 → HTML（转义 + 换行 + 简易列表）
+  // AI 文本 → HTML（转义 + 换行 + 简易列表 + 金额高亮）
   function aiTextHtml(text) {
     var html = esc(text)
       .replace(/\n/g, '<br>')
-      .replace(/^(?:\s*[-*]\s+)(.+)$/gm, '<div style="padding-left:14px;position:relative;">• $1</div>');
+      .replace(/^(?:\s*[-*]\s+)(.+)$/gm, '<div style="padding-left:14px;position:relative;">• $1</div>')
+      .replace(/(¥\s?[\d,]+(?:\.\d{1,2})?)/g, '<span class="ai-money">$1</span>')
+      .replace(/(\b\d+(?:\.\d{1,2})?\s*元\b)/g, '<span class="ai-money">$1</span>');
     return html;
   }
 
