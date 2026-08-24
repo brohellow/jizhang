@@ -795,6 +795,15 @@
     aiSending = true;
     var sendBtn0 = $('#ai-send');
     if (sendBtn0) { sendBtn0.disabled = true; sendBtn0.textContent = '…'; }
+    // 60 秒超时保护
+    var timeoutId = setTimeout(function () {
+      if (aiSending) {
+        pendingMsg(pending, '⏱️ 请求超时（60秒），请重试');
+        aiSending = false;
+        if (sendBtn0) { sendBtn0.disabled = false; sendBtn0.textContent = '➤ 发送'; }
+      }
+    }, 60000);
+    var _finalize = function () { clearTimeout(timeoutId); };
 
     var sel = $('#ai-model-select');
     var mv = sel ? sel.value : '';
@@ -833,6 +842,7 @@
         pending.innerHTML = aiTextHtml(e.message);
       })
       .finally(function () {
+        if (typeof _finalize === 'function') _finalize();
         aiSending = false;
         var sendBtn = $('#ai-send');
         if (sendBtn) { sendBtn.disabled = false; sendBtn.textContent = '➤ 发送'; }
