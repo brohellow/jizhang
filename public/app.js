@@ -1324,10 +1324,16 @@
   }
 
   var trendView = 'bar'; // bar | line
+  var statsCacheFront = {}; // month -> {summary, monthly, byCat, daily}
   function renderStats() {
     var month = $('#stats-month').value || currentMonthStr();
     // 确保图表库已加载（懒加载）
     ensureEcharts();
+    // 同月已加载则直接渲染
+    if (statsCacheFront[month]) {
+      renderStatsData(statsCacheFront[month]);
+      return;
+    }
     // 非本月时显示"本月"按钮
     var todayBtn = $('#stats-month-today');
     if (todayBtn) todayBtn.classList.toggle('hidden', month === currentMonthStr());
@@ -1341,6 +1347,13 @@
       api('/stats/daily?ledger_id=' + state.currentLedgerId + '&month=' + month),
     ]).then(function (rs) {
       var summary = rs[0], monthly = rs[1], byCat = rs[2], daily = rs[3];
+      statsCacheFront[month] = { summary: summary, monthly: monthly, byCat: byCat, daily: daily };
+      renderStatsData({ summary: summary, monthly: monthly, byCat: byCat, daily: daily });
+    }).catch(function (e) { toast(e.message); });
+  }
+
+  function renderStatsData(data) {
+      var summary = data.summary, monthly = data.monthly, byCat = data.byCat, daily = data.daily;
       if (!summary.expense && !summary.income && !summary.record_count) {
         $('#stat-income').textContent = '—';
         $('#stat-expense').textContent = '—';
@@ -1414,7 +1427,6 @@
       trendChart(monthly);
       pieChart(byCat);
       dailyChart(daily);
-    }).catch(function (e) { toast(e.message); });
   }
 
   function isDarkTheme() {
