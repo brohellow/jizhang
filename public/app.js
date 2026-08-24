@@ -324,7 +324,9 @@
       renderHeader();
       await loadCategories();
       renderCategoryPicker();
-      $('#filter-month').value = currentMonthStr();
+      // 筛选月份：记忆上次选择（刷新保留）
+      var savedMonth = localStorage.getItem('jz_filter_month');
+      $('#filter-month').value = savedMonth && savedMonth.length === 7 ? savedMonth : currentMonthStr();
       $('#stats-month').value = currentMonthStr();
       $('#budget-month').value = currentMonthStr();
       switchTab('record');
@@ -2287,7 +2289,10 @@
     $('#record-cancel').onclick = resetRecordForm;
 
     // 明细筛选
-    $('#filter-month').onchange = function () { state.recordPage = 1; loadRecords(); };
+    $('#filter-month').onchange = function () {
+      localStorage.setItem('jz_filter_month', $('#filter-month').value);
+      state.recordPage = 1; loadRecords();
+    };
     // 关键词搜索防抖（400ms）
     var kwTimer = null;
     $('#filter-keyword').addEventListener('input', function () {
