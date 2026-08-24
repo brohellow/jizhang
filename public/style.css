@@ -518,6 +518,7 @@ main { max-width: 1140px; margin: 0 auto; padding: 20px; }
 .type-toggle button[data-type="expense"].active { color: var(--expense); }
 .type-toggle button[data-type="income"].active { color: var(--income); }
 
+.cat-search { margin-bottom: 10px; font-size: 13px; }
 .category-grid {
   display: grid;
   grid-template-columns: repeat(4, 1fr);

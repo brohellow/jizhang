@@ -974,10 +974,13 @@
     state.categories = await api('/categories');
   }
 
+  var catSearchText = '';
   function renderCategoryPicker() {
     var box = $('#category-picker');
     box.innerHTML = '';
-    var list = state.categories.filter(function (c) { return c.type === state.recordType; });
+    var list = state.categories.filter(function (c) {
+      return c.type === state.recordType && (!catSearchText || (c.name || '').indexOf(catSearchText) !== -1);
+    });
     list.forEach(function (c) {
       var btn = document.createElement('button');
       btn.type = 'button';
@@ -2114,6 +2117,15 @@
         }
       }
     });
+
+    // 分类搜索
+    var cs = $('#category-search');
+    if (cs) {
+      cs.addEventListener('input', function () {
+        catSearchText = cs.value.trim();
+        renderCategoryPicker();
+      });
+    }
 
     // 快捷金额：点击填充金额框
     document.querySelectorAll('.quick-amounts button').forEach(function (b) {
