@@ -195,7 +195,12 @@ main { max-width:900px; margin:24px auto; padding:0 16px; }
   // 页面加载时确保成功弹窗是隐藏的（绝不自动弹出）
   document.getElementById('create-modal').classList.add('hidden');
   loadRooms();
-  setInterval(loadRooms, 5000);
+  // 页面可见时才轮询（节省资源）
+  var roomTimer = setInterval(loadRooms, 5000);
+  document.addEventListener('visibilitychange', function () {
+    if (document.hidden) clearInterval(roomTimer);
+    else { loadRooms(); roomTimer = setInterval(loadRooms, 5000); }
+  });
 })();
 </script>
 </body>
