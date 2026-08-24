@@ -1980,7 +1980,15 @@
   }
 
   // ================= Tab 切换 =================
+  var tabScrollPos = {};
   function switchTab(name) {
+    // 保存当前 tab 滚动位置
+    var cur = document.querySelector('.tab-pane.active');
+    if (cur) {
+      var activeName = '';
+      document.querySelectorAll('.tabs button').forEach(function (b) { if (b.classList.contains('active')) activeName = b.dataset.tab; });
+      if (activeName) tabScrollPos[activeName] = window.scrollY;
+    }
     // 离开统计页：释放图表（节省内存）
     if (name !== 'stats' && state.charts) {
       Object.keys(state.charts).forEach(function (k) {
@@ -2007,6 +2015,10 @@
     } else if (name === 'ai') {
       loadAiSettings();
       if (!$('#ai-chat-input').value) $('#ai-chat-input').focus();
+    }
+    // 恢复该 tab 的滚动位置
+    if (tabScrollPos[name] != null) {
+      setTimeout(function () { window.scrollTo(0, tabScrollPos[name]); }, 50);
     }
   }
 
