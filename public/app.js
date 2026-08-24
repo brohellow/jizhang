@@ -2169,6 +2169,12 @@
 
     // 明细筛选
     $('#filter-month').onchange = function () { state.recordPage = 1; loadRecords(); };
+    // 关键词搜索防抖（400ms）
+    var kwTimer = null;
+    $('#filter-keyword').addEventListener('input', function () {
+      clearTimeout(kwTimer);
+      kwTimer = setTimeout(function () { state.recordPage = 1; loadRecords(); }, 400);
+    });
     // 清除筛选
     $('#btn-clear-filter').onclick = function () {
       $('#filter-month').value = '';

@@ -18,6 +18,15 @@ const app = express();
 
 app.use(express.json());
 
+// ===== 安全响应头 =====
+app.use((req, res, next) => {
+  res.setHeader('X-Content-Type-Options', 'nosniff');
+  res.setHeader('X-Frame-Options', 'SAMEORIGIN');
+  res.setHeader('Referrer-Policy', 'no-referrer');
+  res.setHeader('X-XSS-Protection', '1; mode=block');
+  next();
+});
+
 // ===== 安全限流（防恶意注册 / 暴力破解 / 刷接口） =====
 // 注册：每 IP 每小时最多 10 次
 app.use('/api/auth/register', rateLimit({
