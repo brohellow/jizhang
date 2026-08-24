@@ -1492,6 +1492,25 @@
       trendChart(monthly);
       pieChart(byCat);
       dailyChart(daily);
+      renderWeekDist();
+  }
+  // 本周支出分布（简单条状图）
+  function renderWeekDist() {
+    var el = $('#week-dist');
+    if (!el) return;
+    api('/stats/week-distribution?ledger_id=' + state.currentLedgerId).then(function (data) {
+      var max = 1;
+      (data || []).forEach(function (d) { max = Math.max(max, d.amount); });
+      el.innerHTML = '<div class="week-dist-bars">' + (data || []).map(function (d) {
+        var h = max > 0 ? Math.max(3, Math.round(d.amount / max * 60)) : 3;
+        var isToday = d.date === new Date().toISOString().slice(0, 10);
+        return '<div class="wd-col' + (isToday ? ' today' : '') + '">' +
+          '<div class="wd-val">' + (d.amount ? fmt(d.amount).replace('¥', '') : '') + '</div>' +
+          '<div class="wd-bar" style="height:' + h + 'px"></div>' +
+          '<div class="wd-name">' + d.name + '</div>' +
+          '</div>';
+      }).join('') + '</div>';
+    }).catch(function () { el.innerHTML = '<div class="muted" style="text-align:center;padding:10px;">暂无数据</div>'; });
   }
 
   function isDarkTheme() {

@@ -275,4 +275,34 @@ router.get('/weekly-review', (req, res) => {
   });
 });
 
+// ============ 周消费分布（本周每天支出，统计页小图） ============
+router.get('/week-distribution', (req, res) => {
+  const ledgerId = resolveLedger(req, res);
+  if (!ledgerId) return;
+  const now = new Date();
+  const day = now.getDay() || 7;
+  const monday = new Date(now); monday.setDate(now.getDate() - day + 1);
+  function ds(d) { return d.getFullYear() + '-' + String(d.getMonth()+1).padStart(2,'0') + '-' + String(d.getDate()).padStart(2,'0'); }
+  const from = ds(monday), to = ds(now);
+  const rows = db.prepare(`
+    SELECT record_date, SUM(amount) s FROM records
+    WHERE ledger_id = ? AND type = 'expense' AND record_date >= ? AND record_date <= ?
+    GROUP BY record_date ORDER BY record_date
+  `).all(ledgerId, from, to);
+  const names = ['周一','周二','周三','周四','周五','周六','周日'];
+  const buckets = [];
+  for (let i = 0; i < 7; i++) {
+    const d = new Date(monday); d.setDate(monday.getDate() + i);
+    buckets.push({ name: names[i], amount: 0, date: ds(d) });
+  }
+  const byDate = {};
+  rows.forEach(function (r) { byDate[r.record_date] = r.s; });
+  buckets.forEach(function (b) { b.amount = byDate[b.date] || 0; });
+  const ck = 'weekdist:' + ledgerId;
+  const cached = cacheGet(ck);
+  if (cached) return res.json(cached);
+  cacheSet(ck, buckets);
+  res.json(buckets);
+});
+
 export default router;

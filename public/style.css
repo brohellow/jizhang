@@ -879,6 +879,13 @@ main { max-width: 1140px; margin: 0 auto; padding: 20px; }
 }
 .ledger-item .l-meta { font-size: 12px; color: var(--muted); }
 .cat-cols { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; }
+.week-dist { padding: 6px 0; }
+.week-dist-bars { display: flex; gap: 8px; align-items: flex-end; justify-content: space-around; min-height: 90px; }
+.wd-col { display: flex; flex-direction: column; align-items: center; gap: 4px; flex: 1; }
+.wd-val { font-size: 10px; color: var(--muted); font-variant-numeric: tabular-nums; }
+.wd-bar { width: 18px; background: linear-gradient(180deg, var(--primary), #6d9bff); border-radius: 4px 4px 0 0; transition: height .4s ease; }
+.wd-col.today .wd-bar { background: linear-gradient(180deg, var(--expense), #f87171); }
+.wd-name { font-size: 11px; color: var(--muted); }
 .pie-top-list { margin-top: 12px; display: flex; flex-direction: column; gap: 4px; }
 .pie-top-item {
   display: flex;
