@@ -173,8 +173,21 @@
         body: opts.body ? JSON.stringify(opts.body) : undefined,
       });
     } catch (e) {
-      _barEnd();
-      throw new Error('网络错误，请确认服务已启动');
+      // 幂等请求（GET）自动重试 1 次
+      if (!opts.method || opts.method === 'GET') {
+        try {
+          resp = await fetch('/api' + path, {
+            method: 'GET',
+            headers: headers,
+          });
+        } catch (e2) {
+          _barEnd();
+          throw new Error('网络错误，请确认服务已启动');
+        }
+      } else {
+        _barEnd();
+        throw new Error('网络错误，请确认服务已启动');
+      }
     }
     var data = null;
     try { data = await resp.json(); } catch (e) { data = null; }

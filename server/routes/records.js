@@ -117,6 +117,7 @@ router.get('/export', (req, res) => {
   const stamp = new Date().toISOString().slice(0, 10).replace(/-/g, '');
   res.setHeader('Content-Type', 'text/csv; charset=utf-8');
   res.setHeader('Content-Disposition', 'attachment; filename="jizhang-' + stamp + '.csv"');
+  res.setHeader('Cache-Control', 'no-store');
   res.send(lines.join('\n'));
 });
 
