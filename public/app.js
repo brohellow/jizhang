@@ -1179,6 +1179,10 @@
 
   // 按当前筛选条件导出 CSV
   function exportRecords() {
+    // 超 5 万条提示（服务器导出上限）
+    if (state.recordTotal > 50000) {
+      toast('记录超过 5 万条，导出将截断，建议缩小筛选范围');
+    }
     var month = $('#filter-month').value || '';
     var from = month ? month + '-01' : '';
     var to = month ? month + '-31' : '';
