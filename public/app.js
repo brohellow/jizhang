@@ -1077,6 +1077,7 @@
     if (cs) cs.value = '';
     $('#record-form').reset();
     $('#record-date').value = todayStr();
+    $('#record-date').max = todayStr(); // 禁止选未来日期
     $('#record-form-title').textContent = '记一笔';
     $('#record-submit').textContent = '保存';
     $('#record-cancel').classList.add('hidden');
