@@ -771,6 +771,11 @@ main { max-width: 1140px; margin: 0 auto; padding: 20px; }
   border-radius: 12px;
 }
 .budget-overall-card:hover { background: var(--hover); }
+.budget-overall-card.over-budget .budget-ring { animation: ringIn .6s cubic-bezier(.22,.9,.32,1.2) both, overPulse 1.6s ease-in-out infinite; }
+@keyframes overPulse {
+  0%, 100% { filter: drop-shadow(0 0 0 rgba(244,101,107,0)); }
+  50% { filter: drop-shadow(0 0 10px rgba(244,101,107,.5)); }
+}
 .budget-ring {
   position: relative;
   width: 88px; height: 88px;

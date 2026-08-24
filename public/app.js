@@ -1482,7 +1482,7 @@
         var circum = 2 * Math.PI * 40;
         var dash = circum * ringPct / 100;
         html.push(
-          '<div class="budget-overall-card">' +
+          '<div class="budget-overall-card' + (cls === 'over' ? ' over-budget' : '') + '">' +
           '<div class="budget-ring" style="--ring-color:' + ringColor + '">' +
           '<svg viewBox="0 0 100 100" width="88" height="88">' +
           '<circle cx="50" cy="50" r="40" fill="none" stroke="var(--soft-bg-2)" stroke-width="9"/>' +
