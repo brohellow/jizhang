@@ -140,7 +140,13 @@
   }
 
   // ================= 启动 =================
+  function hideSplash() {
+    var sp = document.getElementById('splash');
+    if (sp) { sp.classList.add('hide'); setTimeout(function () { sp.remove(); }, 600); }
+  }
+
   async function bootApp() {
+    hideSplash();
     try {
       var me = await api('/auth/me');
       state.user = me.user;
@@ -156,6 +162,7 @@
       $('#budget-month').value = currentMonthStr();
       switchTab('record');
     } catch (e) {
+      hideSplash();
       showLogin();
     }
   }
@@ -659,7 +666,9 @@
     if (!text) return;
     input.value = '';
     appendAiMsg('user', text);
-    appendAiMsg('bot', '思考中…');
+    appendAiMsg('bot', '<span class="ai-thinking"><i></i><i></i><i></i></span>');
+    var sendBtn0 = $('#ai-send');
+    if (sendBtn0) { sendBtn0.disabled = true; sendBtn0.textContent = '…'; }
 
     var sel = $('#ai-model-select');
     var mv = sel ? sel.value : '';
@@ -689,6 +698,10 @@
       .catch(function (e) {
         pending.textContent = '';
         pending.innerHTML = esc(e.message);
+      })
+      .finally(function () {
+        var sendBtn = $('#ai-send');
+        if (sendBtn) { sendBtn.disabled = false; sendBtn.textContent = '发送'; }
       });
   }
 
@@ -1140,6 +1153,7 @@
         var pctText = data.overall.amount > 0 ? pct + '%' : '--';
         html.push(
           '<div class="budget-item">' +
+          '<div class="b-icon">💰</div>' +
           '<div class="b-main">' +
           '<div class="progress ' + cls + '"><div style="width:' + Math.min(100, pct) + '%"></div></div>' +
           '<div class="b-info">已支出 ' + fmt(data.overall.spent) + ' / 预算 ' + fmt(data.overall.amount) + '（' + pctText + '）' +
@@ -1540,6 +1554,26 @@
       };
     });
     $('#record-form').onsubmit = submitRecord;
+    // 密码强度提示
+    var pwInput = $('#reg-password');
+    if (pwInput) {
+      pwInput.addEventListener('input', function () {
+        var v = pwInput.value;
+        var meter = $('#pw-meter'), fill = $('#pw-fill');
+        if (!meter || !fill) return;
+        if (!v) { meter.classList.add('hidden'); return; }
+        meter.classList.remove('hidden');
+        var score = 0;
+        if (v.length >= 6) score++;
+        if (v.length >= 10) score++;
+        if (/[A-Z]/.test(v) && /[a-z]/.test(v)) score++;
+        if (/[0-9]/.test(v)) score++;
+        if (/[^A-Za-z0-9]/.test(v)) score++;
+        var pct = Math.min(100, score * 20);
+        fill.style.width = pct + '%';
+        fill.className = 'pw-fill pw-' + (score <= 1 ? 'weak' : score <= 3 ? 'mid' : 'strong');
+      });
+    }
     // 快捷金额：点击填充金额框
     document.querySelectorAll('.quick-amounts button').forEach(function (b) {
       b.onclick = function () {

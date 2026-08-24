@@ -7,6 +7,8 @@
 <link rel="stylesheet" href="style.css">
 </head>
 <body>
+<!-- 首屏品牌闪屏 -->
+<div id="splash" class="splash"><div class="splash-logo">📒</div><div class="splash-name">记账本</div></div>
 
 <!-- ===== 登录页 ===== -->
 <div id="login-view" class="login-wrap hidden">
@@ -25,6 +27,7 @@
     <form id="register-form" class="hidden">
       <input id="reg-username" placeholder="用户名（2-32 位字母/数字/中文）" autocomplete="username">
       <input id="reg-password" type="password" placeholder="密码（至少 6 位）" autocomplete="new-password">
+      <div class="pw-meter hidden" id="pw-meter"><div class="pw-fill" id="pw-fill"></div></div>
       <input id="reg-nickname" placeholder="昵称（可选）">
       <button type="submit" class="btn primary block">注 册</button>
     </form>
@@ -187,10 +190,10 @@
         </div>
       </div>
       <div class="grid-2">
-        <div class="card"><h2>近 12 个月收支趋势</h2><div id="chart-trend" class="chart"></div></div>
+        <div class="card"><h2>📈 近 12 个月收支趋势</h2><div id="chart-trend" class="chart"></div></div>
         <div class="card"><h2>本月支出分类占比</h2><div id="chart-pie" class="chart"></div></div>
       </div>
-      <div class="card"><h2>本月每日收支</h2><div id="chart-daily" class="chart"></div></div>
+      <div class="card"><h2>📅 本月每日收支</h2><div id="chart-daily" class="chart"></div></div>
     </section>
 
     <!-- 预算页 -->
@@ -276,6 +279,7 @@
       </div>
     </section>
   </main>
+  <footer class="site-footer">📒 记账本 · 多账本 · 预算 · AI 助手 · <span id="footer-version">v1.0</span></footer>
 </div>
 
 <div id="toast" class="toast hidden"></div>
