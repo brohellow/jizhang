@@ -52,18 +52,23 @@ router.post('/register', (req, res) => {
 router.post('/login', (req, res) => {
   const { username, password } = req.body || {};
   if (!username || !password) return res.status(400).json({ error: '用户名和密码不能为空' });
+  // 登录审计日志（安全可追溯）
+  const ip = (req.headers['x-forwarded-for'] || req.socket.remoteAddress || '').toString().slice(0, 45);
+  const ts = new Date().toISOString().replace('T', ' ').slice(0, 19);
   const u = db.prepare('SELECT * FROM users WHERE username = ?').get(username);
   if (!u || !verifyPassword(password, u.password_hash)) {
     // 记录失败（由 loginThrottle 中间件维护计数）
     if (req.loginAttemptKey && req.loginAttemptsMap) {
       recordLoginFailure(req.loginAttemptKey, req.loginAttemptsMap, 5, 15 * 60 * 1000);
     }
+    console.log('[auth] FAIL ' + ts + ' user=' + String(username).slice(0, 20) + ' ip=' + ip);
     return res.status(401).json({ error: '用户名或密码错误' });
   }
   // 登录成功：清零该账号/IP 的失败计数
   if (req.loginAttemptKey && req.loginAttemptsMap) {
     clearLoginAttempts(req.loginAttemptKey, req.loginAttemptsMap);
   }
+  console.log('[auth] OK ' + ts + ' user=' + String(username).slice(0, 20) + ' ip=' + ip);
   const token = createSession(u.id);
   res.json({ token, user: publicUser(u) });
 });
