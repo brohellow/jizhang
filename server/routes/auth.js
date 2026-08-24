@@ -5,6 +5,9 @@ import { recordLoginFailure, clearLoginAttempts } from '../rate-limit.js';
 
 const router = Router();
 
+// ===== me 缓存定期清理 =====
+setInterval(function () { const n = Date.now(); for (const [k, v] of meCache) if (n - v.t >= ME_CACHE_TTL * 4) meCache.delete(k); }, 60000).unref();
+
 // ===== 定期清理过期会话（防 sessions 表膨胀） =====
 setInterval(function () {
   try {
@@ -63,14 +66,26 @@ router.post('/login', (req, res) => {
 });
 
 // 当前用户信息 + 账本列表
+// ===== /me 缓存（3 秒，改昵称时清） =====
+const meCache = new Map();
+const ME_CACHE_TTL = 3000;
+function meGet(uid) { const h = meCache.get(uid); if (h && Date.now() - h.t < ME_CACHE_TTL) return h.data; return null; }
+function meSet(uid, data) { meCache.set(uid, { t: Date.now(), data }); }
+function meInvalidate(uid) { meCache.delete(uid); }
+
 router.get('/me', requireAuth, (req, res) => {
+  const cached = meGet(req.user.id);
+  if (cached) return res.json(cached);
   const u = db.prepare('SELECT * FROM users WHERE id = ?').get(req.user.id);
   const ledgers = db.prepare('SELECT * FROM ledgers WHERE user_id = ? ORDER BY id').all(req.user.id);
-  res.json({ user: publicUser(u), ledgers });
+  const out = { user: publicUser(u), ledgers };
+  meSet(req.user.id, out);
+  res.json(out);
 });
 
 // 修改昵称
 router.put('/me', requireAuth, (req, res) => {
+  meInvalidate(req.user.id);
   const nickname = (req.body && req.body.nickname != null ? String(req.body.nickname) : '').trim();
   if (!nickname) return res.status(400).json({ error: '昵称不能为空' });
   if (nickname.length > 32) return res.status(400).json({ error: '昵称不能超过 32 个字符' });
