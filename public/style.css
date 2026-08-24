@@ -457,6 +457,17 @@ header {
 .tabs button.active:hover::before { left: 12%; right: 12%; }
 
 main { max-width: 1140px; margin: 0 auto; padding: 20px; }
+.top-bar {
+  position: fixed;
+  top: 0; left: 0;
+  height: 2px;
+  width: 0;
+  background: linear-gradient(90deg, var(--primary), var(--expense), var(--income));
+  z-index: 99999;
+  transition: width .3s ease, opacity .3s;
+  opacity: 0;
+}
+.top-bar.active { opacity: 1; }
 .site-footer {
   text-align: center;
   color: var(--muted);

@@ -124,10 +124,37 @@
     toastTimer = setTimeout(function () { el.classList.add('hidden'); }, 2400);
   }
 
+  var _apiDepth = 0;
+  function _barStart() {
+    _apiDepth++;
+    var bar = $('#top-bar');
+    if (bar && !bar.classList.contains('active')) {
+      bar.classList.add('active');
+      bar.style.width = '20%';
+    }
+  }
+  function _barEnd() {
+    _apiDepth = Math.max(0, _apiDepth - 1);
+    if (_apiDepth === 0) {
+      var bar = $('#top-bar');
+      if (bar) {
+        bar.style.width = '100%';
+        setTimeout(function () {
+          bar.style.opacity = '0';
+          setTimeout(function () {
+            bar.classList.remove('active');
+            bar.style.width = '0';
+            bar.style.opacity = '1';
+          }, 250);
+        }, 250);
+      }
+    }
+  }
   async function api(path, opts) {
     opts = opts || {};
     var headers = { 'Content-Type': 'application/json' };
     if (state.token) headers['Authorization'] = 'Bearer ' + state.token;
+    _barStart();
     var resp;
     try {
       resp = await fetch('/api' + path, {
@@ -136,10 +163,12 @@
         body: opts.body ? JSON.stringify(opts.body) : undefined,
       });
     } catch (e) {
+      _barEnd();
       throw new Error('网络错误，请确认服务已启动');
     }
     var data = null;
     try { data = await resp.json(); } catch (e) { data = null; }
+    _barEnd();
     if (resp.status === 401) {
       logoutLocal();
       throw new Error((data && data.error) || '登录已失效');
