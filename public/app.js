@@ -1113,11 +1113,20 @@
   function renderRecordList() {
     var box = $('#record-list');
     if (state.lastItems.length === 0) {
-      box.innerHTML = '<div class="empty empty-records">暂无记录，记一笔吧 📝<br><button type="button" class="btn primary sm" style="margin-top:10px;" id="empty-go-record">去记一笔 →</button></div>';
+      var hasFilter = $('#filter-month').value || $('#filter-type').value || $('#filter-category').value || $('#filter-keyword').value.trim();
+      box.innerHTML = hasFilter
+        ? '<div class="empty empty-records">没有符合筛选的记录 🔍<br><button type="button" class="btn ghost sm" style="margin-top:10px;" id="empty-clear-filter">清除筛选</button></div>'
+        : '<div class="empty empty-records">暂无记录，记一笔吧 📝<br><button type="button" class="btn primary sm" style="margin-top:10px;" id="empty-go-record">去记一笔 →</button></div>';
       var goBtn = box.querySelector('#empty-go-record');
       if (goBtn) goBtn.onclick = function () {
         $('#record-form').scrollIntoView({ behavior: 'smooth', block: 'start' });
         $('#record-amount').focus();
+      };
+      var clearBtn2 = box.querySelector('#empty-clear-filter');
+      if (clearBtn2) clearBtn2.onclick = function () {
+        $('#filter-month').value = ''; $('#filter-type').value = '';
+        $('#filter-category').value = ''; $('#filter-keyword').value = '';
+        state.recordPage = 1; loadRecords();
       };
     } else {
       var html = [];
