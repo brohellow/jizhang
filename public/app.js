@@ -868,7 +868,7 @@
         var cls = r.type === 'income' ? 'income' : 'expense';
         html.push(
           '<div class="record-item">' +
-          '<div class="r-icon">' + esc(icon) + '</div>' +
+          '<div class="r-icon ' + cls + '">' + esc(icon) + '</div>' +
           '<div class="r-main">' +
           '<div class="r-name">' + esc(name) + (r.note ? ' · ' + esc(r.note) : '') + '</div>' +
           '<div class="r-note">' + (r.type === 'income' ? '收入' : '支出') + '</div>' +

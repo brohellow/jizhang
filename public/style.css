@@ -349,23 +349,37 @@ main { max-width: 1100px; margin: 0 auto; padding: 20px; }
 .record-item:last-child { border-bottom: none; }
 .record-item .r-icon {
   font-size: 20px;
-  width: 34px;
-  height: 34px;
+  width: 36px;
+  height: 36px;
   display: flex;
   align-items: center;
   justify-content: center;
   background: var(--soft-bg);
-  border-radius: 10px;
+  border-radius: 11px;
   flex-shrink: 0;
+  transition: transform .18s, box-shadow .18s;
+}
+.record-item:hover .r-icon { transform: scale(1.08); }
+.record-item .r-icon.expense {
+  background: linear-gradient(135deg, rgba(244,101,107,.14), rgba(244,101,107,.05));
+  box-shadow: inset 0 0 0 1px rgba(244,101,107,.15);
+}
+.record-item .r-icon.income {
+  background: linear-gradient(135deg, rgba(34,197,94,.14), rgba(34,197,94,.05));
+  box-shadow: inset 0 0 0 1px rgba(34,197,94,.15);
 }
 .record-item .r-main { flex: 1; min-width: 0; }
 .record-item .r-name { font-weight: 500; }
 .record-item .r-note { color: var(--muted); font-size: 12px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .record-item .r-date { color: var(--muted); font-size: 12px; width: 90px; flex-shrink: 0; }
-.record-item .r-amount { font-weight: 600; font-variant-numeric: tabular-nums; width: 100px; text-align: right; flex-shrink: 0; }
+.record-item .r-amount { font-weight: 700; font-variant-numeric: tabular-nums; width: 100px; text-align: right; flex-shrink: 0; font-size: 15px; letter-spacing: .2px; }
 .record-item .r-actions { display: flex; gap: 4px; }
 .amount.income, .r-amount.income { color: var(--income); }
 .amount.expense, .r-amount.expense { color: var(--expense); }
+.r-amount.income { background: linear-gradient(135deg, #22c55e, #16a34a); -webkit-background-clip: text; background-clip: text; -webkit-text-fill-color: transparent; }
+.r-amount.expense { background: linear-gradient(135deg, #f4656b, #e5484d); -webkit-background-clip: text; background-clip: text; -webkit-text-fill-color: transparent; }
+.record-item { transition: background .15s, transform .15s; }
+.record-item:hover { background: var(--hover); transform: translateX(2px); }
 .empty { color: var(--muted); text-align: center; padding: 30px 0; }
 .pager { display: flex; align-items: center; justify-content: center; gap: 12px; margin-top: 12px; color: var(--muted); font-size: 13px; }
 
