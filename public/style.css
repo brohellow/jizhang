@@ -1616,3 +1616,14 @@ main { max-width: 1140px; margin: 0 auto; padding: 20px; }
 .pw-fill.pw-mid { background: var(--amber); }
 .pw-fill.pw-strong { background: var(--income); }
 
+
+/* ===== 归一化（消除重复规则冲突） ===== */
+.filter-bar input, .filter-bar select { width: auto; }
+.card:hover { box-shadow: 0 8px 28px rgba(30,42,58,.08), 0 2px 6px rgba(30,42,58,.04); }
+.stat:hover { transform: translateY(-3px); }
+.btn.danger:hover { background: var(--danger-bg-2); }
+input, select { outline: none; }
+input:focus, select:focus { border-color: var(--primary); box-shadow: 0 0 0 3px rgba(79,125,249,.12); }
+.tabs button { border: none; background: transparent; }
+.category-grid button { cursor: pointer; }
+
