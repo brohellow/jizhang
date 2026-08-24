@@ -1050,6 +1050,9 @@
   function resetRecordForm() {
     state.editingRecordId = null;
     state.selectedCategoryId = null;
+    catSearchText = '';
+    var cs = $('#category-search');
+    if (cs) cs.value = '';
     $('#record-form').reset();
     $('#record-date').value = todayStr();
     $('#record-form-title').textContent = '记一笔';
