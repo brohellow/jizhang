@@ -5,6 +5,13 @@ import { recordLoginFailure, clearLoginAttempts } from '../rate-limit.js';
 
 const router = Router();
 
+// ===== 定期清理过期会话（防 sessions 表膨胀） =====
+setInterval(function () {
+  try {
+    db.prepare("DELETE FROM sessions WHERE expires_at < datetime('now','localtime')").run();
+  } catch (e) {}
+}, 60 * 60 * 1000).unref(); // 每小时
+
 function publicUser(u) {
   return { id: u.id, username: u.username, nickname: u.nickname, current_ledger_id: u.current_ledger_id, created_at: u.created_at };
 }
