@@ -2314,6 +2314,28 @@
       localStorage.setItem('jz_filter_month', $('#filter-month').value);
       state.recordPage = 1; loadRecords();
     };
+    // 筛选快捷范围
+    document.querySelectorAll('.filter-range button').forEach(function (b) {
+      b.onclick = function () {
+        var d = new Date();
+        var ym = d.getFullYear() + '-' + String(d.getMonth() + 1).padStart(2, '0');
+        if (b.dataset.range === 'today') {
+          $('#filter-month').value = ym;
+          $('#filter-keyword').value = ym + '-' + String(d.getDate()).padStart(2, '0');
+        } else if (b.dataset.range === 'month') {
+          $('#filter-month').value = ym;
+          $('#filter-keyword').value = '';
+        } else if (b.dataset.range === 'prev') {
+          var prev = new Date(d.getFullYear(), d.getMonth() - 1, 1);
+          $('#filter-month').value = prev.getFullYear() + '-' + String(prev.getMonth() + 1).padStart(2, '0');
+          $('#filter-keyword').value = '';
+        }
+        localStorage.setItem('jz_filter_month', $('#filter-month').value);
+        state.recordPage = 1;
+        loadRecords();
+      };
+    });
+
     // 关键词搜索防抖（400ms）
     var kwTimer = null;
     $('#filter-keyword').addEventListener('input', function () {

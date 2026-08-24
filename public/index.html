@@ -190,6 +190,11 @@
             </select>
             <select id="filter-category"><option value="">全部分类</option></select>
             <input type="search" id="filter-keyword" placeholder="搜索备注">
+            <span class="filter-range">
+              <button type="button" class="btn ghost sm" data-range="today">今天</button>
+              <button type="button" class="btn ghost sm" data-range="month">本月</button>
+              <button type="button" class="btn ghost sm" data-range="prev">上月</button>
+            </span>
             <button type="button" id="btn-clear-filter" class="btn ghost sm hidden" title="清除筛选">✕ 清除</button>
             <button type="button" id="btn-export" class="btn ghost sm" title="按当前筛选条件导出 CSV">导出 CSV</button>
           </div>
