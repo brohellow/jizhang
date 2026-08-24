@@ -1172,10 +1172,17 @@
       api('/stats/daily?ledger_id=' + state.currentLedgerId + '&month=' + month),
     ]).then(function (rs) {
       var summary = rs[0], monthly = rs[1], byCat = rs[2], daily = rs[3];
-      animateNum($('#stat-income'), summary.income);
-      animateNum($('#stat-expense'), summary.expense);
-      animateNum($('#stat-net'), summary.net);
-      $('#stat-count').textContent = summary.record_count + ' 笔';
+      if (!summary.expense && !summary.income && !summary.record_count) {
+        $('#stat-income').textContent = '—';
+        $('#stat-expense').textContent = '—';
+        $('#stat-net').textContent = '—';
+        $('#stat-count').textContent = '本月无记录';
+      } else {
+        animateNum($('#stat-income'), summary.income);
+        animateNum($('#stat-expense'), summary.expense);
+        animateNum($('#stat-net'), summary.net);
+        $('#stat-count').textContent = summary.record_count + ' 笔';
+      }
       // 环比（与上月对比）
       function deltaPct(cur, prev) {
         if (!prev || prev <= 0) return null;
@@ -1892,6 +1899,18 @@
         fill.className = 'pw-fill pw-' + (score <= 1 ? 'weak' : score <= 3 ? 'mid' : 'strong');
       });
     }
+    // Ctrl+Enter 快捷保存（记账页焦点时）
+    document.addEventListener('keydown', function (e) {
+      if (e.ctrlKey && e.key === 'Enter') {
+        var active = document.querySelector('.tabs button.active');
+        if (active && active.dataset.tab === 'record') {
+          e.preventDefault();
+          var form = $('#record-form');
+          if (form && !form.classList.contains('hidden')) form.requestSubmit();
+        }
+      }
+    });
+
     // 快捷金额：点击填充金额框
     document.querySelectorAll('.quick-amounts button').forEach(function (b) {
       b.onclick = function () {
