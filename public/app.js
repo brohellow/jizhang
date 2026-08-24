@@ -1349,7 +1349,8 @@
               emphasis: { itemStyle: { shadowBlur: 8, shadowColor: 'rgba(34,197,94,.35)' } } },
             { name: '支出', type: 'bar', data: monthly.map(function (m) { return m.expense; }), barMaxWidth: 16,
               itemStyle: { borderRadius: [5,5,0,0], color: { type: 'linear', x: 0, y: 0, x2: 0, y2: 1, colorStops: [{offset:0,color:'#f87171'},{offset:1,color:'#dc2626'}] } },
-              emphasis: { itemStyle: { shadowBlur: 8, shadowColor: 'rgba(244,101,107,.35)' } } },
+              emphasis: { itemStyle: { shadowBlur: 8, shadowColor: 'rgba(244,101,107,.35)' } },
+              markLine: { symbol: 'none', lineStyle: { type: 'dashed', color: 'rgba(244,101,107,.5)' }, label: { formatter: '月均支出', color: '#8b96ab', fontSize: 10 }, data: [{ type: 'average' }] } },
           ],
     }, true);
   }
