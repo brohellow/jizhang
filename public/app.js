@@ -255,6 +255,7 @@
     var u = state.user || {};
     $('#profile-username').textContent = u.username || '';
     $('#profile-created').textContent = u.created_at ? u.created_at.slice(0, 10) : '';
+    $('#profile-stats').textContent = (state.ledgers ? state.ledgers.length : 0) + ' 账本 · ' + (state.categories ? state.categories.length : 0) + ' 分类';
     $('#profile-nickname').value = u.nickname || '';
     $('#profile-old-password').value = '';
     $('#profile-new-password').value = '';
@@ -1694,13 +1695,23 @@
       $('#login-hint').textContent = '';
       switchLoginForm(false);
     };
+    var loginBtn = $('#login-form .btn');
+    var regBtn = $('#register-form .btn');
     $('#login-form').onsubmit = function (e) {
       e.preventDefault();
+      if (loginBtn.disabled) return;
+      loginBtn.disabled = true;
+      loginBtn.textContent = '登录中…';
       doLogin($('#login-username').value.trim(), $('#login-password').value);
+      setTimeout(function () { loginBtn.disabled = false; loginBtn.textContent = '登 录'; }, 1500);
     };
     $('#register-form').onsubmit = function (e) {
       e.preventDefault();
+      if (regBtn.disabled) return;
+      regBtn.disabled = true;
+      regBtn.textContent = '注册中…';
       doRegister($('#reg-username').value.trim(), $('#reg-password').value, $('#reg-nickname').value.trim());
+      setTimeout(function () { regBtn.disabled = false; regBtn.textContent = '注 册'; }, 1500);
     };
 
     // 个人中心
