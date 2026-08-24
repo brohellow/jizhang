@@ -2374,10 +2374,15 @@
       }).catch(function (err) { toast(err.message); });
     };
 
+    // 图表 resize 防抖（250ms）
+    var chartResizeTimer = null;
     window.addEventListener('resize', function () {
-      Object.keys(state.charts).forEach(function (k) {
-        if (state.charts[k]) state.charts[k].resize();
-      });
+      clearTimeout(chartResizeTimer);
+      chartResizeTimer = setTimeout(function () {
+        Object.keys(state.charts).forEach(function (k) {
+          if (state.charts[k]) state.charts[k].resize();
+        });
+      }, 250);
     });
   }
 
