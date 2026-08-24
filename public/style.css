@@ -711,6 +711,9 @@ main { max-width: 1140px; margin: 0 auto; padding: 20px; }
   50% { opacity: .9; }
 }
 .pager { display: flex; align-items: center; justify-content: center; gap: 12px; margin-top: 14px; color: var(--muted); font-size: 13px; }
+.page-jump { display: inline-flex; gap: 4px; align-items: center; }
+.page-jump input { width: 56px; padding: 5px 8px; font-size: 13px; text-align: center; }
+.page-jump .btn { padding: 5px 10px; }
 #page-info {
   background: var(--soft-bg);
   padding: 4px 14px;

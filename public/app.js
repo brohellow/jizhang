@@ -1316,6 +1316,20 @@
     $('#page-info').textContent = '第 ' + state.recordPage + '/' + totalPages + ' 页 · 共 ' + state.recordTotal + ' 条';
     $('#page-prev').disabled = state.recordPage <= 1;
     $('#page-next').disabled = state.recordPage >= totalPages;
+    // 跳页输入
+    var pageInput = $('#page-input');
+    if (pageInput) { pageInput.max = totalPages; pageInput.value = ''; }
+    var pageGo = $('#page-go');
+    if (pageGo) {
+      pageGo.onclick = function () {
+        var p = parseInt($('#page-input').value, 10);
+        if (isFinite(p) && p >= 1 && p <= totalPages) {
+          state.recordPage = p;
+          loadRecords();
+        } else { toast('页码无效（1-' + totalPages + '）'); }
+      };
+      pageInput.addEventListener('keydown', function (e) { if (e.key === 'Enter') pageGo.onclick(); });
+    }
   }
 
   function editRecord(id) {
