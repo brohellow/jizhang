@@ -1348,14 +1348,15 @@
   }
 
   var trendView = 'bar'; // bar | line
-  var statsCacheFront = {}; // month -> {summary, monthly, byCat, daily}
+  var statsCacheFront = {}; // ledger:month -> {summary, monthly, byCat, daily}
   function renderStats() {
     var month = $('#stats-month').value || currentMonthStr();
     // 确保图表库已加载（懒加载）
     ensureEcharts();
-    // 同月已加载则直接渲染
-    if (statsCacheFront[month]) {
-      renderStatsData(statsCacheFront[month]);
+    var ck2 = state.currentLedgerId + ':' + month;
+    // 同账本同月已加载则直接渲染
+    if (statsCacheFront[ck2]) {
+      renderStatsData(statsCacheFront[ck2]);
       return;
     }
     // 非本月时显示"本月"按钮
@@ -1371,7 +1372,7 @@
       api('/stats/daily?ledger_id=' + state.currentLedgerId + '&month=' + month),
     ]).then(function (rs) {
       var summary = rs[0], monthly = rs[1], byCat = rs[2], daily = rs[3];
-      statsCacheFront[month] = { summary: summary, monthly: monthly, byCat: byCat, daily: daily };
+      statsCacheFront[ck2] = { summary: summary, monthly: monthly, byCat: byCat, daily: daily };
       renderStatsData({ summary: summary, monthly: monthly, byCat: byCat, daily: daily });
     }).catch(function (e) { toast(e.message); });
   }
