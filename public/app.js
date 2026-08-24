@@ -865,6 +865,10 @@
       sel.appendChild(opt);
     });
     sel.value = String(state.currentLedgerId);
+    // 动态页面标题
+    var cur = null;
+    state.ledgers.forEach(function (l) { if (l.id === state.currentLedgerId) cur = l; });
+    document.title = cur ? '📒 ' + cur.name + ' · 记账本' : '记账本';
   }
 
   // ================= 分类 =================
@@ -1052,7 +1056,12 @@
   function renderRecordList() {
     var box = $('#record-list');
     if (state.lastItems.length === 0) {
-      box.innerHTML = '<div class="empty empty-records">暂无记录，记一笔吧 📝</div>';
+      box.innerHTML = '<div class="empty empty-records">暂无记录，记一笔吧 📝<br><button type="button" class="btn primary sm" style="margin-top:10px;" id="empty-go-record">去记一笔 →</button></div>';
+      var goBtn = box.querySelector('#empty-go-record');
+      if (goBtn) goBtn.onclick = function () {
+        $('#record-form').scrollIntoView({ behavior: 'smooth', block: 'start' });
+        $('#record-amount').focus();
+      };
     } else {
       var html = [];
       var lastDate = '';
