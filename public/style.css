@@ -1453,6 +1453,18 @@ main { max-width: 1140px; margin: 0 auto; padding: 20px; }
   background: var(--soft-bg);
   border-radius: 6px;
 }
+.ai-suggest {
+  display: inline-block;
+  margin-top: 6px;
+  padding: 4px 12px;
+  background: var(--primary-soft);
+  border-radius: 99px;
+  font-size: 13px;
+  color: var(--primary-dark);
+  cursor: pointer;
+  transition: all .15s;
+}
+.ai-suggest:hover { transform: translateY(-1px); box-shadow: 0 3px 8px rgba(79,125,249,.2); }
 .ai-record-mark {
   margin-top: 8px;
   font-size: 12px;

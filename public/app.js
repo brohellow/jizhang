@@ -618,6 +618,16 @@
   // ================= AI 聊天（多轮上下文） =================
   var aiHistory = []; // [{role:'user'|'assistant', content}]
 
+  // 绑定建议问题点击
+  function bindAiSuggests() {
+    document.querySelectorAll('.ai-suggest').forEach(function (el) {
+      el.addEventListener('click', function () {
+        var input = $('#ai-chat-input');
+        if (input) { input.value = el.dataset.q; input.focus(); }
+      });
+    });
+  }
+
   // AI 文本 → HTML（转义 + 换行 + 简易列表）
   function aiTextHtml(text) {
     var html = esc(text)
@@ -672,7 +682,8 @@
     aiHistory = [];
     var list = $('#ai-chat-list');
     list.innerHTML = '';
-    appendAiMsg('bot', '你好！我是 AI 记账助手 🤖<br>对话已清空。可以直接说「今天午饭花了 25 块」帮你记账，也可以问我「这个月花了多少」。<br><br><span style="opacity:.75;font-size:12px;">玩法：📖 账单故事 · 🎁 本周盲盒 · 💰 攒钱模拟</span>');
+    appendAiMsg('bot', '你好！我是 AI 记账助手 🤖<br>对话已清空。试试下面这些：<br><span class="ai-suggest" data-q="今天午饭花了 25 块">🍚 记一笔：今天午饭花了 25 块</span><br><span class="ai-suggest" data-q="这个月花了多少钱？">💸 问：这个月花了多少钱？</span><br><span class="ai-suggest" data-q="分析一下我的消费习惯">📊 分析消费习惯</span><br><br><span style="opacity:.75;font-size:12px;">玩法：📖 账单故事 · 🎁 本周盲盒 · 💰 攒钱模拟 · 输入 /help 看指令</span>');
+    bindAiSuggests();
     updateAiCount();
   }
 
