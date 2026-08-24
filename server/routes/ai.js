@@ -237,9 +237,13 @@ async function webSearch(query) {
   }
 }
 
-// ===== 汇率查询（免费 API） =====
+// ===== 汇率查询（免费 API，6 小时缓存减少外部依赖） =====
+const fxCache = new Map();
+const FX_TTL = 6 * 60 * 60 * 1000;
 async function getExchangeRate(base) {
   const baseCurrency = String(base || 'CNY').toUpperCase().slice(0, 3);
+  const cachedFx = fxCache.get(baseCurrency);
+  if (cachedFx && Date.now() - cachedFx.t < FX_TTL) return cachedFx.data;
   try {
     const resp = await fetch('https://open.er-api.com/v6/latest/' + baseCurrency, { timeout: 8000 });
     if (!resp.ok) return { error: '汇率查询失败 (' + resp.status + ')' };
@@ -252,7 +256,7 @@ async function getExchangeRate(base) {
     common.forEach(function (c) {
       if (rates[c] != null) out[c] = rates[c];
     });
-    return {
+    const fxOut = {
       base: baseCurrency,
       updated: data.time_last_update_utc || '',
       rates: out,
@@ -261,6 +265,8 @@ async function getExchangeRate(base) {
         .map(function (c) { return '1 ' + baseCurrency + ' ≈ ' + Number(rates[c]).toFixed(4) + ' ' + c; })
         .join('，'),
     };
+    fxCache.set(baseCurrency, { t: Date.now(), data: fxOut });
+    return fxOut;
   } catch (err) {
     return { error: '汇率查询出错: ' + err.message };
   }
