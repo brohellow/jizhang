@@ -244,5 +244,11 @@
   window.addEventListener('jz-theme-change', onThemeChange);
 
   resize();
-  start();
+  // 首屏渲染完成后延迟启动（让主线程先渲染页面）
+  if (document.readyState === 'complete') {
+    setTimeout(start, 600);
+  } else {
+    window.addEventListener('load', function () { setTimeout(start, 600); });
+    setTimeout(start, 1500); // 兜底
+  }
 })();
