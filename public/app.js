@@ -1427,7 +1427,11 @@
       var s = document.createElement('script');
       s.src = 'vendor/echarts.min.js';
       s.onload = function () { echartsLoaded = true; resolve(); };
-      s.onerror = function () { resolve(); };
+      s.onerror = function () {
+        echartsLoaded = true; // 标记尝试过，避免反复加载
+        toast('图表库加载失败，请刷新重试');
+        resolve();
+      };
       document.head.appendChild(s);
     });
   }
