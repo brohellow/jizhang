@@ -172,7 +172,8 @@ router.get('/', (req, res) => {
   if (cached) return res.json(cached);
   const total = db.prepare('SELECT COUNT(*) AS c FROM records r ' + whereSql).get(...params).c;
   const items = db.prepare(`
-    SELECT r.*, c.name AS category_name, c.icon AS category_icon
+    SELECT r.id, r.ledger_id, r.type, r.category_id, r.amount, r.note, r.record_date,
+      c.name AS category_name, c.icon AS category_icon
     FROM records r LEFT JOIN categories c ON c.id = r.category_id
     ` + whereSql + ' ORDER BY r.record_date DESC, r.id DESC LIMIT ? OFFSET ?')
     .all(...params, pageSize, (page - 1) * pageSize);
