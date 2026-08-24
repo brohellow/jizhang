@@ -129,4 +129,104 @@ router.get('/daily', (req, res) => {
   res.json(list);
 });
 
+// ============ 玩法扩展：月度账单故事数据（供 AI 生成账单信） ============
+router.get('/story-data', (req, res) => {
+  const ledgerId = resolveLedger(req, res);
+  if (!ledgerId) return;
+  const month = monthParam(req);
+  const y = Number(month.slice(0, 4));
+  const m = Number(month.slice(5, 7));
+  const daysInMonth = new Date(y, m, 0).getDate();
+
+  const agg = db.prepare('SELECT type, COALESCE(SUM(amount),0) s, COUNT(*) c FROM records WHERE ledger_id = ? AND substr(record_date,1,7) = ? GROUP BY type')
+    .all(ledgerId, month);
+  let income = 0, expense = 0, count = 0;
+  agg.forEach(r2 => { if (r2.type === 'income') income = r2.s; else expense = r2.s; count += r2.c; });
+
+  const catRows = db.prepare(`
+    SELECT COALESCE(c.name, '其他') name, COALESCE(c.icon,'📦') icon, SUM(r.amount) amount, COUNT(*) c
+    FROM records r LEFT JOIN categories c ON c.id = r.category_id
+    WHERE r.ledger_id = ? AND r.type = 'expense' AND substr(r.record_date,1,7) = ?
+    GROUP BY r.category_id ORDER BY amount DESC LIMIT 6
+  `).all(ledgerId, month);
+
+  const daily = db.prepare(`
+    SELECT record_date, SUM(amount) s FROM records
+    WHERE ledger_id = ? AND type = 'expense' AND substr(record_date,1,7) = ?
+    GROUP BY record_date ORDER BY s DESC LIMIT 1
+  `).get(ledgerId, month);
+
+  const most = db.prepare(`
+    SELECT r.record_date, r.amount, r.note, COALESCE(c.name,'其他') cname, COALESCE(c.icon,'📦') icon
+    FROM records r LEFT JOIN categories c ON c.id = r.category_id
+    WHERE r.ledger_id = ? AND r.type = 'expense' AND substr(r.record_date,1,7) = ?
+    ORDER BY r.amount DESC LIMIT 1
+  `).get(ledgerId, month);
+
+  const avgDaily = daysInMonth > 0 ? Math.round(expense / daysInMonth) : 0;
+  const spendDays = db.prepare('SELECT COUNT(DISTINCT record_date) c FROM records WHERE ledger_id = ? AND type = ? AND substr(record_date,1,7) = ?')
+    .get(ledgerId, 'expense', month).c;
+
+  res.json({
+    month,
+    income, expense, record_count: count,
+    avg_daily_expense: avgDaily,
+    spend_days: spendDays,
+    total_days: daysInMonth,
+    top_categories: catRows.map(r3 => ({ name: r3.name, icon: r3.icon, amount: r3.amount, count: r3.c })),
+    peak_day: daily ? { date: daily.record_date, amount: daily.s } : null,
+    most_expense: most ? { date: most.record_date, amount: most.amount, note: most.note, category: most.cname, icon: most.icon } : null,
+  });
+});
+
+// ============ 玩法扩展：周报盲盒数据 ============
+router.get('/weekly-review', (req, res) => {
+  const ledgerId = resolveLedger(req, res);
+  if (!ledgerId) return;
+  const now = new Date();
+  const day = now.getDay() || 7;
+  const monday = new Date(now); monday.setDate(now.getDate() - day + 1);
+  const sunday = new Date(monday); sunday.setDate(monday.getDate() + 6);
+  function ds(d) { return d.getFullYear() + '-' + String(d.getMonth()+1).padStart(2,'0') + '-' + String(d.getDate()).padStart(2,'0'); }
+  const from = ds(monday), to = ds(sunday);
+
+  const totalRow = db.prepare('SELECT COALESCE(SUM(amount),0) s FROM records WHERE ledger_id = ? AND type = ? AND record_date >= ? AND record_date <= ?')
+    .get(ledgerId, 'expense', from, to);
+  const most = db.prepare(`
+    SELECT r.record_date, r.amount, r.note, COALESCE(c.name,'其他') cname, COALESCE(c.icon,'📦') icon
+    FROM records r LEFT JOIN categories c ON c.id = r.category_id
+    WHERE r.ledger_id = ? AND r.type = 'expense' AND r.record_date >= ? AND r.record_date <= ?
+    ORDER BY r.amount DESC LIMIT 1
+  `).get(ledgerId, from, to);
+  const cheapest = db.prepare(`
+    SELECT r.record_date, r.amount, r.note, COALESCE(c.name,'其他') cname
+    FROM records r LEFT JOIN categories c ON c.id = r.category_id
+    WHERE r.ledger_id = ? AND r.type = 'expense' AND r.amount > 0 AND r.record_date >= ? AND r.record_date <= ?
+    ORDER BY r.amount ASC LIMIT 1
+  `).get(ledgerId, from, to);
+  const peak = db.prepare(`
+    SELECT record_date, SUM(amount) s FROM records
+    WHERE ledger_id = ? AND type = 'expense' AND record_date >= ? AND record_date <= ?
+    GROUP BY record_date ORDER BY s DESC LIMIT 1
+  `).get(ledgerId, from, to);
+  const topCat = db.prepare(`
+    SELECT COALESCE(c.name,'其他') name, COALESCE(c.icon,'📦') icon, COUNT(*) c, SUM(r.amount) amount
+    FROM records r LEFT JOIN categories c ON c.id = r.category_id
+    WHERE r.ledger_id = ? AND r.type = 'expense' AND r.record_date >= ? AND r.record_date <= ?
+    GROUP BY r.category_id ORDER BY c DESC LIMIT 1
+  `).get(ledgerId, from, to);
+  const cnt = db.prepare('SELECT COUNT(*) c FROM records WHERE ledger_id = ? AND type = ? AND record_date >= ? AND record_date <= ?')
+    .get(ledgerId, 'expense', from, to).c;
+
+  res.json({
+    week: from + '~' + to,
+    total_expense: totalRow.s,
+    record_count: cnt,
+    most: most ? { date: most.record_date, amount: most.amount, note: most.note, category: most.cname, icon: most.icon } : null,
+    cheapest: cheapest ? { date: cheapest.record_date, amount: cheapest.amount, note: cheapest.note, category: cheapest.cname } : null,
+    peak_day: peak ? { date: peak.record_date, amount: peak.s } : null,
+    top_category: topCat ? { name: topCat.name, icon: topCat.icon, count: topCat.c, amount: topCat.amount } : null,
+  });
+});
+
 export default router;

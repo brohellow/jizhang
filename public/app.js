@@ -523,6 +523,112 @@
     if (el) el.textContent = aiHistory.length ? '已记住 ' + Math.ceil(aiHistory.length / 2) + ' 轮对话' : '新对话';
   }
 
+  // ================= 玩法：账单故事 / 盲盒周报 / 攒钱模拟 =================
+  function aiAskWith(prompt) {
+    // 用当前模型把 prompt 发给 AI，返回 Promise(reply)
+    var sel = $('#ai-model-select');
+    var mv = sel ? sel.value : '';
+    var providerId = null, model = null;
+    if (mv && mv.indexOf('::') > 0) { providerId = mv.split('::')[0]; model = mv.split('::')[1]; }
+    return api('/ai/chat', {
+      method: 'POST',
+      body: { message: prompt, ledger_id: state.currentLedgerId, provider_id: providerId, model: model, messages: [] },
+    }).then(function (d) { return (d && d.reply) || '（无回复）'; });
+  }
+
+  // 📖 账单故事：拉上月/本月数据 → AI 生成叙事
+  function playStory() {
+    appendAiMsg('user', '📖 生成我的账单故事');
+    appendAiMsg('bot', '正在整理你的账单数据…');
+    var last = $('#ai-chat-list .ai-msg:last-child .ai-bubble');
+    var month = currentMonthStr();
+    // 生成上月的故事
+    var d = new Date();
+    var prev = new Date(d.getFullYear(), d.getMonth() - 1, 1);
+    var prevMonth = prev.getFullYear() + '-' + String(prev.getMonth() + 1).padStart(2, '0');
+    api('/stats/story-data?ledger_id=' + state.currentLedgerId + '&month=' + prevMonth)
+      .then(function (data) {
+        if (!data || !data.expense && !data.income) {
+          pendingMsg(last, '这个月还没有记账数据，先去记几笔再来生成故事吧 📝');
+          return;
+        }
+        var prompt = buildStoryPrompt(prevMonth, data);
+        pendingMsg(last, '📖 正在写你的账单故事…');
+        return aiAskWith(prompt);
+      })
+      .then(function (reply) {
+        if (reply) pendingMsg(last, reply);
+      })
+      .catch(function (e) { pendingMsg(last, '生成失败：' + e.message); });
+  }
+
+  function buildStoryPrompt(month, data) {
+    var topCats = (data.top_categories || []).map(function (c) { return c.icon + c.name + ' ' + (c.amount / 100).toFixed(0) + '元(' + c.count + '笔)'; }).join('、');
+    var lines = [
+      '请根据以下我的上月（' + month + '）记账数据，写一封温暖、有趣、有生活感的"个人账单故事信"（300字以内，用中文，第一人称"我"）。',
+      '要提到具体数字和细节，像朋友聊天一样自然，可以带一点幽默和鼓励。',
+      '数据：',
+      '总收入 ' + (data.income / 100).toFixed(0) + ' 元，总支出 ' + (data.expense / 100).toFixed(0) + ' 元，共 ' + data.record_count + ' 笔。',
+      '日均支出 ' + (data.avg_daily_expense / 100).toFixed(0) + ' 元，有消费的天数 ' + data.spend_days + '/' + data.total_days + ' 天。',
+      data.top_categories.length ? '支出分类 Top：' + topCats + '。' : '',
+      data.peak_day ? '花钱最多的一天是 ' + data.peak_day.date + '，花了 ' + (data.peak_day.amount / 100).toFixed(0) + ' 元。' : '',
+      data.most_expense ? '单笔最大支出：' + (data.most_expense.note || '无备注') + '（' + (data.most_expense.icon || '') + data.most_expense.category + '）' + (data.most_expense.amount / 100).toFixed(0) + ' 元，' + data.most_expense.date + '。' : '',
+      '开头可以写"亲爱的记账人"，结尾给一句鼓励。不要出现"AI""模型"等字眼。',
+    ];
+    return lines.filter(Boolean).join('\n');
+  }
+
+  // 🎁 本周盲盒：拉周报数据 → AI 解读成"盲盒卡"
+  function playBlind() {
+    appendAiMsg('user', '🎁 打开本周盲盒');
+    appendAiMsg('bot', '正在准备本周盲盒…');
+    var last = $('#ai-chat-list .ai-msg:last-child .ai-bubble');
+    api('/stats/weekly-review?ledger_id=' + state.currentLedgerId)
+      .then(function (data) {
+        if (!data || !data.total_expense) {
+          pendingMsg(last, '本周还没记账，盲盒是空的 🎁 记几笔再来开！');
+          return;
+        }
+        var prompt = buildBlindPrompt(data);
+        pendingMsg(last, '🎁 正在打开本周盲盒…');
+        return aiAskWith(prompt);
+      })
+      .then(function (reply) {
+        if (reply) pendingMsg(last, reply);
+      })
+      .catch(function (e) { pendingMsg(last, '盲盒失败：' + e.message); });
+  }
+
+  function buildBlindPrompt(data) {
+    var lines = [
+      '这是一份我本周的消费盲盒数据（' + data.week + '），请把它包装成一张有趣好玩的"盲盒开箱卡"（200字内，中文，俏皮一点）：',
+      '本周总支出 ' + (data.total_expense / 100).toFixed(0) + ' 元，共 ' + data.record_count + ' 笔。',
+      data.most ? '最贵一单：' + (data.most.note || data.most.category) + ' ' + (data.most.amount / 100).toFixed(0) + ' 元（' + data.most.date + '）。' : '',
+      data.cheapest ? '最便宜一单：' + (data.cheapest.note || data.cheapest.category) + ' ' + (data.cheapest.amount / 100).toFixed(2) + ' 元。' : '',
+      data.peak_day ? '花钱最多的一天：' + data.peak_day.date + '，' + (data.peak_day.amount / 100).toFixed(0) + ' 元。' : '',
+      data.top_category ? '出现最多的是：' + data.top_category.icon + data.top_category.name + '（' + data.top_category.count + '次）。' : '',
+      '格式：开头"本周盲盒 🎁"，中间列亮点，结尾一句吐槽或鼓励。',
+    ];
+    return lines.filter(Boolean).join('\n');
+  }
+
+  // 💰 攒钱模拟：提示用户输入假设，AI 计算
+  function playSave() {
+    appendAiMsg('user', '💰 打开攒钱模拟器');
+    appendAiMsg('bot', '告诉我你的"攒钱计划"，比如：<br>「每天少喝一杯 20 元的咖啡，想攒 5000 元去旅行」<br>或「每月省下 500 元，多久能攒 2 万？」');
+    // 聚焦输入框，提示输入攒钱计划
+    var input = $('#ai-chat-input');
+    input.value = '';
+    input.placeholder = '输入你的攒钱计划，如：每天少喝一杯20元咖啡，想攒5000元…';
+    input.focus();
+  }
+
+  function pendingMsg(el, text) {
+    if (!el) return;
+    el.textContent = '';
+    el.innerHTML = esc(text).replace(/\n/g, '<br>');
+  }
+
   function sendAiMessage() {
     var input = $('#ai-chat-input');
     var text = input.value.trim();
@@ -1311,6 +1417,9 @@
     // AI 聊天
     $('#ai-send').onclick = sendAiMessage;
     $('#ai-clear-chat').onclick = clearAiChat;
+    $('#ai-play-story').onclick = playStory;
+    $('#ai-play-blind').onclick = playBlind;
+    $('#ai-play-save').onclick = playSave;
     $('#ai-chat-input').onkeydown = function (e) {
       if (e.key === 'Enter') { e.preventDefault(); sendAiMessage(); }
     };
