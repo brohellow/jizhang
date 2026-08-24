@@ -1631,6 +1631,8 @@
   }
 
   function refreshAfterLedgerChange() {
+    var main = document.querySelector('main');
+    if (main) { main.style.opacity = '0'; main.style.transition = 'opacity .25s ease'; }
     var activeTab = document.querySelector('.tabs button.active');
     api('/auth/me').then(function (me) {
       state.user = me.user;
@@ -1638,7 +1640,8 @@
       state.currentLedgerId = me.user.current_ledger_id || (me.ledgers[0] ? me.ledgers[0].id : null);
       renderHeader();
       switchTab(activeTab ? activeTab.dataset.tab : 'record');
-    }).catch(function () {});
+      if (main) main.style.opacity = '1';
+    }).catch(function () { if (main) main.style.opacity = '1'; });
   }
 
   function refreshAll() {
