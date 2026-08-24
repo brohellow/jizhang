@@ -17,7 +17,9 @@ function getLedgerOr404(id, userId, res) {
 // 账本列表（含记录数）
 router.get('/', (req, res) => {
   const ledgers = db.prepare(`
-    SELECT l.*, (SELECT COUNT(*) FROM records r WHERE r.ledger_id = l.id) AS record_count
+    SELECT l.*,
+      (SELECT COUNT(*) FROM records r WHERE r.ledger_id = l.id) AS record_count,
+      (SELECT COUNT(*) FROM budgets b WHERE b.ledger_id = l.id) AS budget_count
     FROM ledgers l WHERE l.user_id = ? ORDER BY l.id
   `).all(req.user.id);
   res.json(ledgers);

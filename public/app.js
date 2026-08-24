@@ -1639,7 +1639,7 @@
         '<div class="l-icon">📒</div>' +
         '<div class="l-main">' +
         '<div class="l-name">' + esc(l.name) + (isCurrent ? ' <span class="l-badge">当前</span>' : '') + '</div>' +
-        '<div class="l-meta">' + (l.record_count || 0) + ' 条记录 · ' + (l.currency || 'CNY') + (l.description ? ' · ' + esc(l.description) : '') + '</div>' +
+        '<div class="l-meta">' + (l.record_count || 0) + ' 条记录 · ' + (l.currency || 'CNY') + ' · ' + (l.budget_count || 0) + ' 项预算' + (l.description ? ' · ' + esc(l.description) : '') + '</div>' +
         '</div>' +
         (isCurrent
           ? '<button type="button" class="btn ghost sm" data-act="rename" data-id="' + l.id + '">重命名</button>'
