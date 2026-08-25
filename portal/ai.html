@@ -1,0 +1,758 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>AI 助手</title>
+<style>
+:root { --bg:#0f0f1a; --card:#1a1a2e; --border:rgba(167,139,250,.2); --text:#e6e6f2; --muted:#8b8ba0; --accent:#a78bfa; --purple:#7c3aed; }
+* { margin:0; padding:0; box-sizing:border-box; }
+body { font-family:-apple-system,BlinkMacSystemFont,"PingFang SC","Microsoft YaHei",sans-serif; min-height:100vh; background:linear-gradient(135deg,#0f0f1a,#1a1a3e); color:var(--text); display:flex; flex-direction:column; }
+.header { display:flex; align-items:center; gap:10px; padding:14px 20px; background:rgba(15,15,26,.9); border-bottom:1px solid var(--border); backdrop-filter:blur(10px); position:sticky; top:0; z-index:20; }
+.header h1 { font-size:17px; flex:1; }
+.header .btn { background:transparent; border:1px solid var(--border); color:var(--muted); padding:7px 14px; border-radius:10px; cursor:pointer; font-size:13px; text-decoration:none; white-space:nowrap; }
+.header .btn:hover { border-color:var(--accent); color:var(--text); }
+.header .btn.active { border-color:var(--accent); color:var(--text); background:rgba(124,58,237,.15); }
+.main { flex:1; display:flex; flex-direction:column; max-width:820px; width:100%; margin:0 auto; padding:16px 16px 20px; }
+
+/* 页面切换 */
+.page { display:none; }
+.page.active { display:flex; flex-direction:column; flex:1; min-height:0; }
+/* 聊天页 */
+.tools { display:flex; gap:8px; margin-bottom:10px; flex-wrap:wrap; }
+.tool-chip { background:rgba(124,58,237,.1); border:1px solid rgba(124,58,237,.3); color:#c4b5fd; padding:6px 14px; border-radius:16px; font-size:12px; cursor:pointer; transition:all .15s; }
+.tool-chip:hover { background:rgba(124,58,237,.25); }
+.tool-chip.add { border-style:dashed; opacity:.8; }
+.chat { flex:1; overflow-y:auto; display:flex; flex-direction:column; gap:12px; padding:4px 2px; min-height:220px; }
+.ai-msg { display:flex; gap:10px; animation:msgIn .3s ease both; }
+.ai-msg.ai-user { flex-direction:row-reverse; }
+.ai-avatar { width:34px; height:34px; border-radius:50%; display:flex; align-items:center; justify-content:center; font-size:16px; flex-shrink:0; }
+.ai-avatar-bot { background:linear-gradient(135deg,#7c3aed,#6d28d9); color:#fff; }
+.ai-avatar-user { background:rgba(124,58,237,.25); color:#c4b5fd; }
+.ai-bubble { background:var(--card); border:1px solid var(--border); border-radius:14px; padding:13px 16px; line-height:1.8; font-size:14px; white-space:normal; word-break:break-word; max-width:85%; }
+.ai-msg.ai-user .ai-bubble { background:rgba(124,58,237,.12); border-left:3px solid var(--purple); }
+.ai-bubble .ai-money { color:#fbbf24; font-weight:600; }
+.ai-suggest { display:inline-block; background:rgba(124,58,237,.12); border:1px solid rgba(124,58,237,.3); color:#c4b5fd; padding:3px 10px; border-radius:12px; font-size:12px; cursor:pointer; margin:3px 4px 3px 0; }
+.ai-suggest:hover { background:rgba(124,58,237,.3); }
+.ai-followup { margin-top:8px; font-size:12px; color:var(--muted); }
+.ai-followup-label { margin-right:4px; }
+.ai-thinking { display:inline-flex; gap:4px; align-items:center; }
+.ai-thinking i { width:6px; height:6px; border-radius:50%; background:var(--accent); animation:blink 1s ease infinite; }
+.ai-thinking i:nth-child(2){ animation-delay:.2s; } .ai-thinking i:nth-child(3){ animation-delay:.4s; }
+@keyframes blink { 0%,100%{opacity:.3} 50%{opacity:1} }
+@keyframes msgIn { from{opacity:0;transform:translateY(8px)} to{opacity:1} }
+.ai-long { position:relative; }
+.ai-more { color:var(--accent); font-size:12px; cursor:pointer; margin-top:6px; }
+.ai-long:not(.ai-expanded) { max-height:320px; overflow:hidden; }
+.input-row { display:flex; gap:10px; margin-top:12px; }
+.input-row textarea { flex:1; padding:12px 16px; border:1px solid var(--border); border-radius:12px; background:var(--card); color:var(--text); font-size:15px; outline:none; resize:none; min-height:48px; font-family:inherit; }
+.input-row textarea:focus { border-color:var(--accent); }
+.input-row button { padding:12px 22px; border:none; border-radius:12px; background:linear-gradient(135deg,#7c3aed,#6d28d9); color:#fff; font-size:15px; font-weight:600; cursor:pointer; }
+.input-row button:disabled { opacity:.5; }
+.input-row button.danger { background:#ef4444; }
+.chat-meta { display:flex; align-items:center; gap:10px; margin-bottom:10px; flex-wrap:wrap; }
+.chat-meta select { padding:7px 12px; border:1px solid var(--border); border-radius:10px; background:var(--card); color:var(--text); font-size:13px; outline:none; max-width:280px; }
+.chat-meta .status { font-size:12px; color:var(--muted); }
+.chat-meta .status.ok { color:#4ade80; }
+.chat-meta .btn { background:transparent; border:1px solid var(--border); color:var(--muted); padding:6px 12px; border-radius:10px; cursor:pointer; font-size:12px; }
+.chat-meta .btn:hover { border-color:var(--accent); color:var(--text); }
+
+/* 模型管理页 */
+.model-page { padding-top:4px; }
+.pm-empty { text-align:center; color:var(--muted); padding:40px 0; line-height:2; }
+.pm-provider-item { margin-bottom:10px; }
+.pm-provider-row { display:flex; align-items:center; gap:12px; background:var(--card); border:1px solid var(--border); border-radius:12px; padding:14px 16px; cursor:pointer; transition:all .15s; }
+.pm-provider-row:hover { border-color:var(--accent); }
+.pm-key-dot { width:10px; height:10px; border-radius:50%; flex-shrink:0; }
+.pm-key-dot.ok { background:#4ade80; } .pm-key-dot.missing { background:#f87171; }
+.pm-provider-main { flex:1; }
+.pm-provider-name { font-weight:600; font-size:14px; }
+.pm-provider-meta { font-size:12px; color:var(--muted); margin-top:2px; word-break:break-all; }
+.pm-provider-card { background:var(--card); border:1px solid var(--border); border-top:none; border-radius:0 0 12px 12px; padding:16px; }
+.pm-card-label { font-size:12px; color:var(--muted); margin:12px 0 6px; }
+.pm-model-inputs { display:flex; flex-direction:column; gap:8px; }
+.pm-model-inputs input, .pm-model-inputs select { padding:9px 12px; border:1px solid var(--border); border-radius:9px; background:rgba(15,15,26,.6); color:var(--text); font-size:13px; outline:none; }
+.pm-model-inputs input:focus, .pm-model-inputs select:focus { border-color:var(--accent); }
+.pm-model-row { display:flex; gap:8px; align-items:center; }
+.pm-model-row input { flex:1; }
+.pm-model-row button { background:transparent; border:none; color:var(--muted); cursor:pointer; font-size:15px; padding:4px 8px; }
+.pm-model-row button:hover { color:#f87171; }
+.pm-card-btns { display:flex; gap:8px; margin-top:14px; }
+.pm-card-btns .btn { flex:1; padding:10px; border-radius:10px; cursor:pointer; font-size:14px; font-weight:600; border:none; }
+.btn.primary { background:linear-gradient(135deg,#7c3aed,#6d28d9); color:#fff; }
+.btn.ghost { background:transparent; border:1px solid var(--border); color:var(--text); }
+.pm-probe-hint { font-size:12px; color:var(--muted); margin-top:8px; min-height:16px; }
+.pm-add-btn { width:100%; padding:13px; border:1px dashed var(--border); background:transparent; color:var(--muted); border-radius:12px; cursor:pointer; font-size:14px; margin-top:6px; }
+.pm-add-btn:hover { border-color:var(--accent); color:var(--text); }
+.login-tip { text-align:center; padding:60px 20px; color:var(--muted); line-height:2.2; }
+.login-tip a { color:var(--accent); }
+.toast { position:fixed; bottom:30px; left:50%; transform:translateX(-50%); background:rgba(15,15,26,.95); border:1px solid var(--border); color:var(--text); padding:10px 22px; border-radius:12px; font-size:14px; z-index:100; box-shadow:0 8px 30px rgba(0,0,0,.4); transition:opacity .3s; }
+.toast.hidden { opacity:0; pointer-events:none; }
+.hidden { display:none !important; }
+</style>
+</head>
+<body>
+<div class="header">
+  <a href="/" class="btn">← 返回</a>
+  <h1>🤖 AI 助手</h1>
+  <button type="button" class="btn active" data-page-btn="chat">💬 对话</button>
+  <button type="button" class="btn" data-page-btn="model">⚙️ 模型管理</button>
+  <a href="/jizhang/" class="btn">📒 记账本</a>
+</div>
+
+<div class="main" id="main">
+  <!-- 聊天页 -->
+  <div class="page active" id="page-chat">
+    <div class="chat-meta">
+      <select id="ai-model-select" title="切换模型"></select>
+      <span class="status" id="ai-model-status">—</span>
+      <span class="status" id="ai-count" style="flex:1;text-align:right;font-size:12px;">新对话</span>
+      <button type="button" class="btn" id="ai-clear-chat">清空</button>
+    </div>
+    <div class="tools">
+      <button class="tool-chip" data-q="这个月花了多少钱？">💸 本月花费</button>
+      <button class="tool-chip" data-q="分析一下我的消费习惯">📊 消费分析</button>
+      <button class="tool-chip" data-q="帮我记账：昨天打车花了 18 元">🧾 记一笔</button>
+      <button class="tool-chip" data-q="推荐一些省钱的方法">💰 省钱建议</button>
+      <button class="tool-chip add" data-q="/help">📖 玩法</button>
+    </div>
+    <div class="chat" id="ai-chat-list"></div>
+    <div class="input-row">
+      <textarea id="ai-chat-input" placeholder="输入你的问题…（如：这个月花了多少钱？）" rows="2"></textarea>
+      <button id="ai-send">➤ 发送</button>
+      <button id="ai-stop" class="danger hidden">⏹</button>
+    </div>
+  </div>
+
+  <!-- 模型管理页 -->
+  <div class="page model-page" id="page-model">
+    <div id="ai-key-hint" style="color:var(--muted);font-size:13px;margin-bottom:12px;"></div>
+    <div id="ai-provider-list"></div>
+    <button type="button" id="ai-add-provider" class="pm-add-btn">＋ 添加供应商</button>
+    <div id="ai-provider-form" class="hidden" style="margin-top:12px;"></div>
+  </div>
+</div>
+
+<div class="toast hidden" id="toast"></div>
+
+<script>
+(function () {
+  'use strict';
+  var token = localStorage.getItem('jz_token') || '';
+  var aiProviders = [];
+  var aiExpandedId = null;
+  var aiHistory = [];
+  var aiSending = false;
+
+  function $(id) { return document.getElementById(id); }
+  function esc(s) { return String(s == null ? '' : s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;'); }
+
+  // ===== toast =====
+  var toastTimer = null;
+  function toast(msg) {
+    var el = $('toast');
+    el.textContent = msg;
+    el.classList.remove('hidden');
+    clearTimeout(toastTimer);
+    toastTimer = setTimeout(function () { el.classList.add('hidden'); }, 2600);
+  }
+  // 简易确认
+  function confirmDialog(msg) {
+    return Promise.resolve(window.confirm(msg));
+  }
+
+  // ===== API =====
+  var publicMode = !token;
+  function api(path, opts) {
+    opts = opts || {};
+    // 免登录模式：对话走 public-chat（公用 key），无需 Authorization
+    var isChat = path === '/ai/chat' && publicMode;
+    var url = isChat ? '/api/ai/public-chat' : '/api' + path;
+    var headers = { 'Content-Type': 'application/json' };
+    if (token) headers['Authorization'] = 'Bearer ' + token;
+    return fetch(url, {
+      method: opts.method || 'GET',
+      headers: headers,
+      body: opts.body ? JSON.stringify(opts.body) : undefined,
+      signal: opts.signal,
+    }).then(function (r) { return r.json().catch(function () { return {}; }); })
+      .catch(function (e) { if (e && e.name === 'AbortError') throw e; return { error: '网络错误，请重试' }; });
+  }
+
+  // ===== 页面切换 =====
+  document.querySelectorAll('[data-page-btn]').forEach(function (b) {
+    b.onclick = function () {
+      var pg = b.dataset.pageBtn;
+      document.querySelectorAll('[data-page-btn]').forEach(function (x) { x.classList.toggle('active', x === b); });
+      document.querySelectorAll('.page').forEach(function (p) { p.classList.toggle('active', p.id === 'page-' + pg); });
+      if (pg === 'model') loadAiSettings();
+    };
+  });
+
+  // ===== AI 文本渲染 =====
+  function aiTextHtml(text) {
+    return esc(text)
+      .replace(/\n/g, '<br>')
+      .replace(/^(?:\s*[-*]\s+)(.+)$/gm, '<div style="padding-left:14px;position:relative;">• $1</div>')
+      .replace(/(¥\s?[\d,]+(?:\.\d{1,2})?)/g, '<span class="ai-money">$1</span>')
+      .replace(/(\b\d+(?:\.\d{1,2})?\s*元\b)/g, '<span class="ai-money">$1</span>');
+  }
+
+  function appendAiMsg(role, text, raw) {
+    var list = $('ai-chat-list');
+    var div = document.createElement('div');
+    div.className = 'ai-msg ' + (role === 'user' ? 'ai-user' : 'ai-bot');
+    var av = document.createElement('div');
+    av.className = 'ai-avatar ' + (role === 'user' ? 'ai-avatar-user' : 'ai-avatar-bot');
+    av.textContent = role === 'user' ? '我' : '🤖';
+    div.appendChild(av);
+    var bubble = document.createElement('div');
+    bubble.className = 'ai-bubble';
+    // raw=true 时直接渲染受信任 HTML（加载动画/帮助指令），否则转义防 XSS
+    bubble.innerHTML = raw ? text : aiTextHtml(text);
+    var now = new Date();
+    bubble.title = '双击复制 · ' + now.toLocaleTimeString();
+    if (role === 'bot' && text.length > 600) {
+      bubble.classList.add('ai-long');
+      var toggle = document.createElement('div');
+      toggle.className = 'ai-more';
+      toggle.textContent = '展开全文 ↓';
+      toggle.onclick = function (e) {
+        e.stopPropagation();
+        bubble.classList.toggle('ai-expanded');
+        toggle.textContent = bubble.classList.contains('ai-expanded') ? '收起 ↑' : '展开全文 ↓';
+      };
+      bubble.appendChild(toggle);
+    }
+    bubble.addEventListener('dblclick', function () {
+      var raw = text.replace(/<[^>]*>/g, '');
+      var ta = document.createElement('textarea');
+      ta.value = raw; document.body.appendChild(ta); ta.select();
+      try { document.execCommand('copy'); toast('已复制'); } catch (e) {}
+      document.body.removeChild(ta);
+    });
+    div.appendChild(bubble);
+    list.appendChild(div);
+    while (list.children.length > 100) list.removeChild(list.firstChild);
+    list.scrollTop = list.scrollHeight;
+  }
+
+  function updateAiCount() {
+    var el = $('ai-count');
+    if (el) el.textContent = aiHistory.length ? '已记住 ' + Math.ceil(aiHistory.length / 2) + ' 轮对话' : '新对话';
+  }
+
+  function bindAiSuggests() {
+    document.querySelectorAll('.ai-suggest[data-q]').forEach(function (s) {
+      if (s.dataset.bound) return;
+      s.dataset.bound = '1';
+      s.onclick = function () { sendAiText(s.dataset.q); };
+    });
+  }
+
+  // ===== 聊天 =====
+  function clearAiChat() {
+    aiHistory = [];
+    $('ai-chat-list').innerHTML = '';
+    // 欢迎消息用纯文本（\n 会被 aiTextHtml 渲染为 <br>）
+    appendAiMsg('bot', '你好！我是 AI 助手 🤖\n对话已清空。试试下面这些：\n\n· 🍚 记一笔：今天午饭花了 25 块\n· 💸 问：这个月花了多少钱？\n· 📊 分析消费习惯\n\n输入 /help 看指令 · 支持记账、查询、分析、闲聊');
+    // 单独创建可点击的建议按钮（避免 HTML 字符串被转义）
+    var list = $('ai-chat-list');
+    var lastMsg = list.querySelector('.ai-msg:last-child .ai-bubble');
+    if (lastMsg) {
+      var sugg = document.createElement('div');
+      sugg.style.cssText = 'margin-top:10px;display:flex;gap:6px;flex-wrap:wrap;';
+      [['🍚 记一笔', '今天午饭花了 25 块'], ['💸 问花费', '这个月花了多少钱？'], ['📊 分析', '分析一下我的消费习惯']].forEach(function (s) {
+        var b = document.createElement('span');
+        b.className = 'ai-suggest';
+        b.textContent = s[0];
+        b.dataset.q = s[1];
+        b.onclick = function () { sendAiText(s[1]); };
+        sugg.appendChild(b);
+      });
+      lastMsg.appendChild(sugg);
+    }
+    updateAiCount();
+  }
+
+  function sendAiText(text) {
+    if (aiSending) return;
+    var input = $('ai-chat-input');
+    input.value = text;
+    sendAiMessage();
+  }
+
+  function sendAiMessage() {
+    if (aiSending) { toast('AI 正在回复，请稍候…'); return; }
+    var input = $('ai-chat-input');
+    var text = input.value.trim();
+    if (!text) return;
+    // 斜杠指令
+    if (text === '/help') {
+      input.value = '';
+      appendAiMsg('user', '/help');
+      appendAiMsg('bot', '📖 可用指令：<br>· <b>/story</b> — 生成账单故事<br>· <b>/blind</b> — 本周盲盒<br>· <b>/save</b> — 攒钱模拟器<br>· <b>/help</b> — 显示本帮助<br>也可以直接用自然语言记账或提问哦～', true);
+      return;
+    }
+    if (text === '/story') { playStory(); input.value = ''; return; }
+    if (text === '/blind') { playBlind(); input.value = ''; return; }
+    if (text === '/save') { playSave(); input.value = ''; return; }
+    input.value = '';
+    input.style.height = 'auto';
+    appendAiMsg('user', text);
+    appendAiMsg('bot', '<span class="ai-thinking"><i></i><i></i><i></i></span>', true);
+    aiSending = true;
+    var sendBtn0 = $('ai-send');
+    if (sendBtn0) { sendBtn0.disabled = true; sendBtn0.textContent = '…'; }
+    var timeoutId = setTimeout(function () {
+      if (aiSending) {
+        var last = document.querySelector('#ai-chat-list .ai-msg:last-child .ai-bubble');
+        if (last && last.textContent === '') last.textContent = '⏱️ 请求超时（60秒），请重试';
+        aiSending = false;
+        if (sendBtn0) { sendBtn0.disabled = false; sendBtn0.textContent = '➤ 发送'; }
+        $('ai-stop').classList.add('hidden');
+      }
+    }, 60000);
+    var _finalize = function () { clearTimeout(timeoutId); };
+
+    var sel = $('ai-model-select');
+    var mv = sel ? sel.value : '';
+    var providerId = null, model = null;
+    if (mv && mv.indexOf('::') > 0) { providerId = mv.split('::')[0]; model = mv.split('::')[1]; }
+
+    var last = document.querySelector('#ai-chat-list .ai-msg:last-child .ai-bubble');
+    var pending = last;
+    var aiAbort = new AbortController();
+    window._aiAbort = aiAbort;
+    $('ai-stop').classList.remove('hidden');
+
+    api('/ai/chat', {
+      method: 'POST',
+      signal: aiAbort.signal,
+      body: { message: text, ledger_id: 0, provider_id: providerId, model: model, messages: aiHistory },
+    })
+      .then(function (data) {
+        pending.textContent = '';
+        pending.innerHTML = aiTextHtml(data.reply || '完成');
+        var sug = document.createElement('div');
+        sug.className = 'ai-followup';
+        sug.innerHTML = '<span class="ai-followup-label">继续问：</span>' +
+          '<span class="ai-suggest" data-q="这个月花了多少钱？">本月花费</span>' +
+          '<span class="ai-suggest" data-q="分析一下我的消费习惯">消费分析</span>' +
+          '<span class="ai-suggest" data-q="帮我记账：刚才买了瓶水3元">快速记账</span>';
+        pending.appendChild(sug);
+        bindAiSuggests();
+        aiHistory.push({ role: 'user', content: text });
+        aiHistory.push({ role: 'assistant', content: data.reply || '完成' });
+        updateAiCount();
+      })
+      .catch(function (e) {
+        pending.textContent = '';
+        if (e && e.name === 'AbortError') { pending.textContent = '⏹ 已停止生成'; }
+        else { pending.textContent = '⚠️ ' + (e.message || '请求失败'); }
+      })
+      .finally(function () {
+        _finalize();
+        aiSending = false;
+        window._aiAbort = null;
+        $('ai-stop').classList.add('hidden');
+        if (sendBtn0) { sendBtn0.disabled = false; sendBtn0.textContent = '➤ 发送'; }
+      });
+  }
+
+  $('ai-send').onclick = sendAiMessage;
+  $('ai-stop').onclick = function () {
+    if (window._aiAbort) window._aiAbort.abort();
+    $('ai-stop').classList.add('hidden');
+    var p = document.querySelector('#ai-chat-list .ai-msg:last-child .ai-bubble');
+    if (p && p.textContent === '') p.textContent = '⏹ 已停止生成';
+    aiSending = false;
+    var sb = $('ai-send');
+    if (sb) { sb.disabled = false; sb.textContent = '➤ 发送'; }
+  };
+  $('ai-clear-chat').onclick = function () {
+    confirmDialog('确定清空对话吗？').then(function (ok) { if (ok) clearAiChat(); });
+  };
+  var aiInput = $('ai-chat-input');
+  aiInput.addEventListener('keydown', function (e) {
+    if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); sendAiMessage(); }
+  });
+
+  // 快捷提问
+  document.querySelectorAll('.tool-chip[data-q]').forEach(function (c) {
+    c.onclick = function () { sendAiText(c.dataset.q); };
+  });
+
+  // ===== 玩法（账单故事/盲盒/攒钱） =====
+  function aiAskWith(prompt) {
+    var sel = $('ai-model-select');
+    var mv = sel ? sel.value : '';
+    var providerId = null, model = null;
+    if (mv && mv.indexOf('::') > 0) { providerId = mv.split('::')[0]; model = mv.split('::')[1]; }
+    return api('/ai/chat', { method: 'POST', body: { message: prompt, ledger_id: 0, provider_id: providerId, model: model, messages: [] } })
+      .then(function (d) { return (d && d.reply) || '（无回复）'; });
+  }
+
+  function playStory() {
+    appendAiMsg('user', '📖 生成账单故事');
+    appendAiMsg('bot', '<span class="ai-thinking"><i></i><i></i><i></i></span>', true);
+    aiAskWith('请以「我的记账故事」为题，用轻松有趣的文笔，讲一个关于我记账生活的小故事（200字左右）。请直接输出故事内容。')
+      .then(function (reply) {
+        var last = document.querySelector('#ai-chat-list .ai-msg:last-child .ai-bubble');
+        last.innerHTML = aiTextHtml(reply);
+      })
+      .catch(function () {
+        var last = document.querySelector('#ai-chat-list .ai-msg:last-child .ai-bubble');
+        last.textContent = '⚠️ 生成失败，请重试';
+      });
+  }
+
+  function playBlind() {
+    appendAiMsg('user', '🎁 本周盲盒');
+    appendAiMsg('bot', '<span class="ai-thinking"><i></i><i></i><i></i></span>', true);
+    aiAskWith('来玩一个「本周消费盲盒」：随机开一个盲盒，给我一个有趣的消费建议或本周小目标（80字左右），语气神秘又有趣。直接输出盲盒内容。')
+      .then(function (reply) {
+        var last = document.querySelector('#ai-chat-list .ai-msg:last-child .ai-bubble');
+        last.innerHTML = aiTextHtml(reply);
+      })
+      .catch(function () {
+        var last = document.querySelector('#ai-chat-list .ai-msg:last-child .ai-bubble');
+        last.textContent = '⚠️ 盲盒开启失败，请重试';
+      });
+  }
+
+  function playSave() {
+    appendAiMsg('user', '💰 攒钱模拟');
+    appendAiMsg('bot', '<span class="ai-thinking"><i></i><i></i><i></i></span>', true);
+    aiAskWith('来玩一个「攒钱模拟器」：假设我每月能省下500元，帮我规划一个一年攒钱计划，包括目标、每个阶段怎么做、一些实用技巧（200字左右）。直接输出计划内容。')
+      .then(function (reply) {
+        var last = document.querySelector('#ai-chat-list .ai-msg:last-child .ai-bubble');
+        last.innerHTML = aiTextHtml(reply);
+      })
+      .catch(function () {
+        var last = document.querySelector('#ai-chat-list .ai-msg:last-child .ai-bubble');
+        last.textContent = '⚠️ 模拟失败，请重试';
+      });
+  }
+
+  // ===== 模型管理 =====
+  function loadAiSettings() {
+    return api('/ai/providers').then(function (data) {
+      aiProviders = data.providers || [];
+      renderAiProviderList();
+      renderAiModelSelect();
+      return data;
+    }).catch(function () { return null; });
+  }
+
+  function renderAiProviderList() {
+    var box = $('ai-provider-list');
+    if (!box) return;
+    if (!aiProviders.length) {
+      box.innerHTML = '<div class="pm-empty">还没有配置模型供应商<br>点击下方「＋ 添加供应商」开始</div>';
+      $('ai-key-hint').textContent = '支持 DeepSeek / OpenAI / 自定义接口，每个供应商可配多个模型';
+      return;
+    }
+    var html = [];
+    aiProviders.forEach(function (p) {
+      var src = p.source === 'user' ? '我的' : p.source === 'file' ? '配置' : '环境';
+      var dot = p.api_key_set ? 'ok' : 'missing';
+      var expanded = aiExpandedId === p.id;
+      html.push('<div class="pm-provider-item">');
+      html.push(
+        '<div class="pm-provider-row" data-ai-toggle="' + p.id + '">' +
+        '<span class="pm-key-dot ' + dot + '" title="' + (p.api_key_set ? 'API Key 已配置' : '缺少 API Key') + '"></span>' +
+        '<div class="pm-provider-main">' +
+        '<div class="pm-provider-name">' + esc(p.name) + ' <span class="muted" style="color:var(--muted)">(' + src + ')</span>' + (p.enabled ? '' : ' <span style="color:var(--muted)">已停用</span>') + '</div>' +
+        '<div class="pm-provider-meta">' + esc(p.provider) + (p.base_url ? ' · ' + esc(p.base_url) : '') + ' · ' + (p.models || []).length + ' 个模型</div>' +
+        '</div>' +
+        '<div class="pm-row-actions">' +
+        (p.source === 'user'
+          ? '<button type="button" class="btn" style="background:transparent;border:1px solid #f87171;color:#f87171;padding:5px 12px;border-radius:8px;font-size:12px;cursor:pointer;" data-ai-del="' + p.id + '">删除</button>'
+          : '<span style="color:var(--muted);font-size:12px;">只读</span>') +
+        '</div>' +
+        '</div>'
+      );
+      if (expanded) { html.push(renderProviderCard(p)); }
+      html.push('</div>');
+    });
+    box.innerHTML = html.join('');
+    box.querySelectorAll('[data-ai-toggle]').forEach(function (r) {
+      r.onclick = function () {
+        var id = r.dataset.aiToggle;
+        aiExpandedId = aiExpandedId === id ? null : id;
+        renderAiProviderList();
+      };
+    });
+    box.querySelectorAll('[data-ai-del]').forEach(function (b) {
+      b.onclick = function (e) {
+        e.stopPropagation();
+        confirmDialog('确定删除该供应商吗？').then(function (ok) {
+          if (!ok) return;
+          var id = b.dataset.aiDel.replace('db:', '');
+          api('/ai/providers/' + id, { method: 'DELETE' }).then(function () {
+            toast('已删除');
+            if (aiExpandedId === b.dataset.aiDel) aiExpandedId = null;
+            loadAiSettings();
+          });
+        });
+      };
+    });
+    // 渲染后绑定卡片内事件
+    var openCard = aiProviders.find(function (p) { return p.id === aiExpandedId; });
+    if (openCard) bindProviderCard(openCard);
+  }
+
+  function renderProviderCard(p) {
+    var s = '';
+    s += '<div class="pm-provider-card">';
+    s += '<div class="pm-card-label">供应商</div>';
+    s += '<div class="pm-model-inputs">' +
+      '<input type="text" data-pf="name" value="' + esc(p.name) + '" placeholder="显示名称">' +
+      '<select data-pf="provider">' +
+      '<option value="deepseek"' + (p.provider === 'deepseek' ? ' selected' : '') + '>DeepSeek</option>' +
+      '<option value="openai"' + (p.provider === 'openai' ? ' selected' : '') + '>OpenAI</option>' +
+      '<option value="custom"' + (p.provider === 'custom' ? ' selected' : '') + '>自定义（OpenAI 兼容）</option>' +
+      '</select>' +
+      '<input type="text" data-pf="base_url" value="' + esc(p.base_url || '') + '" placeholder="接口地址（Base URL）">' +
+      '</div>';
+    s += '<div class="pm-card-label">API 密钥</div>';
+    s += '<div class="pm-model-inputs">' +
+      '<input type="password" data-pf="api_key" placeholder="' + (p.api_key_set ? '留空=不修改（当前 ' + esc(p.api_key_masked) + '）' : '请输入 API Key') + '" autocomplete="off">' +
+      '</div>';
+    s += '<div class="pm-card-label">模型列表</div>';
+    s += '<div class="pm-model-inputs" data-model-rows>' +
+      (p.models || []).map(function (m) {
+        return '<div class="pm-model-row"><input type="text" data-model-id value="' + esc(m) + '" placeholder="模型 ID"><button type="button" class="btn ghost sm" data-model-del>✕</button></div>';
+      }).join('') +
+      '</div>';
+    s += '<div style="display:flex;gap:8px">' +
+      '<button type="button" class="btn ghost" style="flex:1;padding:9px;border-radius:9px;cursor:pointer;" data-model-add>＋ 添加模型</button>' +
+      '<button type="button" class="btn ghost" style="flex:1;padding:9px;border-radius:9px;cursor:pointer;" data-probe>获取模型</button>' +
+      '</div>';
+    s += '<div class="pm-probe-hint" data-probe-hint></div>';
+    s += '<div class="pm-card-btns">' +
+      '<button type="button" class="btn primary" data-ai-save>应用</button>' +
+      '<button type="button" class="btn ghost" data-ai-cancel>收起</button>' +
+      '</div>';
+    s += '</div>';
+    return s;
+  }
+
+  function bindProviderCard(p) {
+    var card = document.querySelector('.pm-provider-card');
+    if (!card) return;
+    card.querySelector('[data-model-add]').onclick = function () {
+      var rows = card.querySelector('[data-model-rows]');
+      var div = document.createElement('div');
+      div.className = 'pm-model-row';
+      div.innerHTML = '<input type="text" data-model-id placeholder="模型 ID"><button type="button" class="btn ghost sm" data-model-del>✕</button>';
+      rows.appendChild(div);
+      bindModelDel();
+    };
+    bindModelDel();
+    // 获取模型（探测）
+    card.querySelector('[data-probe]').onclick = function () {
+      var hint = card.querySelector('[data-probe-hint]');
+      hint.textContent = '正在获取…';
+      var baseUrl = (card.querySelector('[data-pf="base_url"]').value || '').trim().replace(/\/+$/, '');
+      var key = card.querySelector('[data-pf="api_key"]').value.trim();
+      var prov = card.querySelector('[data-pf="provider"]').value;
+      var presetUrls = { deepseek: 'https://api.deepseek.com/v1', openai: 'https://api.openai.com/v1', custom: '' };
+      var url = baseUrl || presetUrls[prov] || '';
+      if (!url) { hint.textContent = '请先填写接口地址'; return; }
+      var useKey = key || (p.api_key || '');
+      fetch(url + '/models', { headers: { Authorization: 'Bearer ' + useKey } })
+        .then(function (r) { return r.json(); })
+        .then(function (d) {
+          var models = (d.data || []).map(function (m) { return m.id; });
+          if (!models.length) { hint.textContent = '未获取到模型（接口可能不支持）'; return; }
+          var rows = card.querySelector('[data-model-rows]');
+          rows.innerHTML = '';
+          models.forEach(function (m) {
+            var div = document.createElement('div');
+            div.className = 'pm-model-row';
+            div.innerHTML = '<input type="text" data-model-id value="' + esc(m) + '"><button type="button" class="btn ghost sm" data-model-del>✕</button>';
+            rows.appendChild(div);
+          });
+          bindModelDel();
+          hint.textContent = '已获取 ' + models.length + ' 个模型，点击「应用」保存';
+        })
+        .catch(function () { hint.textContent = '获取失败（网络或密钥问题）'; });
+    };
+    // 应用
+    card.querySelector('[data-ai-save]').onclick = function () {
+      var name = card.querySelector('[data-pf="name"]').value.trim() || '未命名';
+      var prov = card.querySelector('[data-pf="provider"]').value;
+      var baseUrl = card.querySelector('[data-pf="base_url"]').value.trim();
+      var key = card.querySelector('[data-pf="api_key"]').value.trim();
+      var models = [];
+      card.querySelectorAll('[data-model-id]').forEach(function (m) { var v = m.value.trim(); if (v) models.push(v); });
+      var body = { name: name, provider: prov, base_url: baseUrl, models: models };
+      if (key) body.api_key = key;
+      var id = p.id.replace('db:', '');
+      api('/ai/providers/' + id, { method: 'PUT', body: body }).then(function (d) {
+        if (d.error) { toast('保存失败: ' + d.error); return; }
+        toast('已保存');
+        aiExpandedId = null;
+        loadAiSettings();
+      });
+    };
+    card.querySelector('[data-ai-cancel]').onclick = function () {
+      aiExpandedId = null;
+      renderAiProviderList();
+    };
+  }
+
+  function bindModelDel() {
+    document.querySelectorAll('[data-model-del]').forEach(function (b) {
+      if (b.dataset.bound) return;
+      b.dataset.bound = '1';
+      b.onclick = function () { var row = b.closest('.pm-model-row'); if (row) row.remove(); };
+    });
+  }
+
+  // ===== 添加供应商 =====
+  $('ai-add-provider').onclick = function () {
+    var form = $('ai-provider-form');
+    if (!form.classList.contains('hidden')) { form.classList.add('hidden'); return; }
+    form.innerHTML =
+      '<div class="pm-provider-card">' +
+      '<div class="pm-card-label">新增供应商</div>' +
+      '<div class="pm-model-inputs">' +
+      '<select data-np="provider">' +
+      '<option value="deepseek">DeepSeek</option>' +
+      '<option value="openai">OpenAI</option>' +
+      '<option value="custom">自定义（OpenAI 兼容）</option>' +
+      '</select>' +
+      '<input type="text" data-np="name" placeholder="显示名称（如：我的 DeepSeek）">' +
+      '<input type="text" data-np="base_url" placeholder="接口地址（可留空用默认）">' +
+      '</div>' +
+      '<div class="pm-card-label">API 密钥</div>' +
+      '<input type="password" data-np="api_key" placeholder="请输入 API Key" autocomplete="off" style="width:100%;padding:9px 12px;border:1px solid var(--border);border-radius:9px;background:rgba(15,15,26,.6);color:var(--text);outline:none;">' +
+      '<div class="pm-card-label">模型（每行一个，可加多个）</div>' +
+      '<div class="pm-model-inputs" data-np-rows>' +
+      '<div class="pm-model-row"><input type="text" data-model-id placeholder="模型 ID（如 deepseek-chat）"><button type="button" data-model-del style="background:transparent;border:none;color:var(--muted);cursor:pointer;">✕</button></div>' +
+      '</div>' +
+      '<div style="display:flex;gap:8px;margin-top:10px;">' +
+      '<button type="button" class="btn ghost" style="flex:1;padding:9px;border-radius:9px;cursor:pointer;" data-np-add>＋ 添加模型</button>' +
+      '<button type="button" class="btn ghost" style="flex:1;padding:9px;border-radius:9px;cursor:pointer;" data-np-probe>获取模型</button>' +
+      '</div>' +
+      '<div class="pm-probe-hint" data-np-hint></div>' +
+      '<div class="pm-card-btns">' +
+      '<button type="button" class="btn primary" data-np-save>保存</button>' +
+      '<button type="button" class="btn ghost" data-np-cancel>取消</button>' +
+      '</div>' +
+      '</div>';
+    form.classList.remove('hidden');
+    bindModelDel();
+    form.querySelector('[data-np-add]').onclick = function () {
+      var rows = form.querySelector('[data-np-rows]');
+      var div = document.createElement('div');
+      div.className = 'pm-model-row';
+      div.innerHTML = '<input type="text" data-model-id placeholder="模型 ID"><button type="button" data-model-del style="background:transparent;border:none;color:var(--muted);cursor:pointer;">✕</button>';
+      rows.appendChild(div);
+      bindModelDel();
+    };
+    form.querySelector('[data-np-probe]').onclick = function () {
+      var hint = form.querySelector('[data-np-hint]');
+      hint.textContent = '正在获取…';
+      var prov = form.querySelector('[data-np-provider]').value;
+      var baseUrl = (form.querySelector('[data-np-base_url]').value || '').trim().replace(/\/+$/, '');
+      var key = form.querySelector('[data-np-api_key]').value.trim();
+      var presetUrls = { deepseek: 'https://api.deepseek.com/v1', openai: 'https://api.openai.com/v1', custom: '' };
+      var url = baseUrl || presetUrls[prov] || '';
+      if (!url) { hint.textContent = '请先填写接口地址'; return; }
+      if (!key) { hint.textContent = '请先填写 API 密钥'; return; }
+      fetch(url + '/models', { headers: { Authorization: 'Bearer ' + key } })
+        .then(function (r) { return r.json(); })
+        .then(function (d) {
+          var models = (d.data || []).map(function (m) { return m.id; });
+          if (!models.length) { hint.textContent = '未获取到模型'; return; }
+          var rows = form.querySelector('[data-np-rows]');
+          rows.innerHTML = '';
+          models.forEach(function (m) {
+            var div = document.createElement('div');
+            div.className = 'pm-model-row';
+            div.innerHTML = '<input type="text" data-model-id value="' + esc(m) + '"><button type="button" data-model-del style="background:transparent;border:none;color:var(--muted);cursor:pointer;">✕</button>';
+            rows.appendChild(div);
+          });
+          bindModelDel();
+          hint.textContent = '已获取 ' + models.length + ' 个模型';
+        })
+        .catch(function () { hint.textContent = '获取失败'; });
+    };
+    form.querySelector('[data-np-save]').onclick = function () {
+      var name = form.querySelector('[data-np-name]').value.trim() || '未命名';
+      var prov = form.querySelector('[data-np-provider]').value;
+      var baseUrl = form.querySelector('[data-np-base_url]').value.trim();
+      var key = form.querySelector('[data-np-api_key]').value.trim();
+      if (!key) { toast('请填写 API 密钥'); return; }
+      var models = [];
+      form.querySelectorAll('[data-model-id]').forEach(function (m) { var v = m.value.trim(); if (v) models.push(v); });
+      if (!models.length) { toast('请至少添加一个模型'); return; }
+      api('/ai/providers', { method: 'POST', body: { name: name, provider: prov, base_url: baseUrl, api_key: key, models: models } })
+        .then(function (d) {
+          if (d.error) { toast('添加失败: ' + d.error); return; }
+          toast('已添加');
+          form.classList.add('hidden');
+          loadAiSettings();
+        });
+    };
+    form.querySelector('[data-np-cancel]').onclick = function () { form.classList.add('hidden'); };
+  };
+
+  // ===== 模型选择 =====
+  function renderAiModelSelect() {
+    var sel = $('ai-model-select');
+    if (!sel) return;
+    var prev = sel.value;
+    sel.innerHTML = '';
+    var opts = [];
+    aiProviders.forEach(function (p) {
+      if (!p.enabled) return;
+      (p.models || []).forEach(function (m) {
+        opts.push({ value: p.id + '::' + m, label: p.name + ' · ' + m });
+      });
+    });
+    if (!opts.length) {
+      var opt = document.createElement('option');
+      opt.value = '';
+      opt.textContent = '（未配置模型）';
+      sel.appendChild(opt);
+      updateModelStatus(false);
+      return;
+    }
+    opts.forEach(function (o) {
+      var opt = document.createElement('option');
+      opt.value = o.value; opt.textContent = o.label;
+      sel.appendChild(opt);
+    });
+    if (prev && opts.some(function (o) { return o.value === prev; })) sel.value = prev;
+    updateModelStatus(true);
+  }
+
+  function updateModelStatus(ok) {
+    var el = $('ai-model-status');
+    if (el) { el.textContent = ok ? '● 就绪' : '⚠ 未配置'; el.className = 'status' + (ok ? ' ok' : ''); }
+  }
+
+  // ===== 初始化 =====
+  var main = $('main');
+  var isPublic = !token; // 未登录时使用公用 key（免登录模式）
+
+  if (isPublic) {
+    // 免登录模式：隐藏模型管理，仅保留对话（用公用配置）
+    document.querySelectorAll('[data-page-btn="model"]').forEach(function (b) { b.classList.add('hidden'); });
+    document.querySelector('.chat-meta').style.display = 'none';
+    appendAiMsg('bot', '你好！我是 AI 助手 🤖\n（当前为免登录模式，使用公用模型）\n\n· 💸 问：这个月花了多少钱？\n· 📊 消费建议\n· 💬 闲聊\n\n登录记账本后可分析你的账单数据。');
+    return;
+  }
+
+  loadAiSettings().then(function () {
+    clearAiChat();
+  });
+})();
+</script>
+</body>
+</html>

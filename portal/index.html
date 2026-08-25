@@ -1,0 +1,75 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>我的小站</title>
+<style>
+* { margin: 0; padding: 0; box-sizing: border-box; }
+body {
+  font-family: -apple-system, BlinkMacSystemFont, "PingFang SC", "Microsoft YaHei", sans-serif;
+  min-height: 100vh;
+  background: linear-gradient(135deg, #0f0f1a 0%, #1a1a3e 50%, #0f0f1a 100%);
+  color: #e6e6f2;
+  display: flex; flex-direction: column; align-items: center;
+  padding: 40px 20px;
+}
+.logo { font-size: 52px; margin-bottom: 12px; animation: float 3s ease-in-out infinite; }
+@keyframes float { 0%,100% { transform: translateY(0); } 50% { transform: translateY(-8px); } }
+h1 { font-size: 30px; font-weight: 800; margin-bottom: 8px;
+  background: linear-gradient(135deg, #a78bfa, #f472b6, #60a5fa);
+  -webkit-background-clip: text; background-clip: text; -webkit-text-fill-color: transparent; }
+.subtitle { color: #8b8ba0; font-size: 15px; margin-bottom: 40px; }
+.apps { display: grid; grid-template-columns: repeat(auto-fit, minmax(260px, 1fr)); gap: 20px; max-width: 860px; width: 100%; }
+.app-card {
+  background: rgba(26,26,62,.8); border: 1px solid rgba(167,139,250,.2);
+  border-radius: 18px; padding: 28px 24px; text-decoration: none; color: inherit;
+  transition: all .25s; display: block; backdrop-filter: blur(8px);
+}
+.app-card:hover { transform: translateY(-6px); border-color: #a78bfa; box-shadow: 0 12px 40px rgba(167,139,250,.25); }
+.app-card .icon { font-size: 38px; margin-bottom: 14px; display: block; }
+.app-card h2 { font-size: 20px; font-weight: 700; margin-bottom: 8px; }
+.app-card p { color: #8b8ba0; font-size: 13px; line-height: 1.6; margin-bottom: 16px; }
+.app-card .btn-go {
+  display: inline-block; padding: 8px 20px; border-radius: 20px;
+  background: linear-gradient(135deg, #7c3aed, #6d28d9); color: #fff;
+  font-size: 13px; font-weight: 600; transition: all .2s;
+}
+.app-card:hover .btn-go { transform: scale(1.05); }
+.app-card.coming .btn-go { background: rgba(139,139,160,.25); color: #8b8ba0; }
+.footer { margin-top: 50px; color: #5a5a70; font-size: 12px; }
+</style>
+</head>
+<body>
+<div class="logo">🏠</div>
+<h1>我的小站</h1>
+<div class="subtitle">欢迎来到我的个人站点，选择你要进入的应用</div>
+<div class="apps">
+  <a href="/jizhang/" class="app-card">
+    <span class="icon">📒</span>
+    <h2>记账本</h2>
+    <p>日常收支记录 · 预算管理 · 统计报表 · AI 智能助手</p>
+    <span class="btn-go">进入记账本 →</span>
+  </a>
+  <a href="/ai.html" class="app-card">
+    <span class="icon">🤖</span>
+    <h2>AI 助手</h2>
+    <p>智能问答 · 消费分析 · 记账总结 · 省钱建议</p>
+    <span class="btn-go">进入 AI 助手 →</span>
+  </a>
+  <a href="/sgs.html" class="app-card">
+    <span class="icon">⚔️</span>
+    <h2>三国杀 · 联机大厅</h2>
+    <p>网页版联机大厅，创建或加入房间，和朋友一起玩</p>
+    <span class="btn-go">进入联机大厅 →</span>
+  </a>
+  <a href="javascript:void(0)" class="app-card coming">
+    <span class="icon">🚧</span>
+    <h2>新网站</h2>
+    <p>即将上线，敬请期待</p>
+    <span class="btn-go">敬请期待</span>
+  </a>
+</div>
+<div class="footer">© 2026 · 我的小站</div>
+</body>
+</html>

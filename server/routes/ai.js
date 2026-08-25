@@ -1,4 +1,67 @@
 import { Router } from 'express';
+import { getProviders as _gp } from '../ai-config.js';
+
+// ============ 免登录公用 AI 路由（不挂鉴权，供主站独立 AI 页使用） ============
+export const publicRouter = Router();
+publicRouter.post('/public-chat', async (req, res) => {
+  try {
+    const message = (req.body && req.body.message || '').toString().trim();
+    if (!message) return res.status(400).json({ error: '请输入内容' });
+    const providers = _gp([]).filter(function (p) { return p.enabled !== false; });
+    if (!providers.length) return res.status(400).json({ error: '服务器未配置公用 AI 供应商' });
+    const target = providers[0];
+
+    const rawHistory = Array.isArray(req.body.messages) ? req.body.messages : [];
+    const history = [];
+    rawHistory.forEach(function (m) {
+      if (!m || typeof m !== 'object') return;
+      const role = m.role === 'assistant' ? 'assistant' : 'user';
+      const content = String(m.content == null ? '' : m.content).trim();
+      if (content) history.push({ role: role, content: content });
+    });
+    const historySlice = history.slice(-20);
+
+    const url = (target.base_url || '').replace(/\/+$/, '') + '/chat/completions';
+    const body = {
+      model: (target.models && target.models[0]) || 'default',
+      messages: [
+        { role: 'system', content: '你是一个友好的 AI 助手，可以回答用户的问题、聊天、给出建议。回答简洁清晰。' },
+      ].concat(historySlice, [{ role: 'user', content: message }]),
+      temperature: 0.7,
+      max_tokens: 1024,
+      stream: false,
+    };
+    const headers = { 'Content-Type': 'application/json', Authorization: 'Bearer ' + target.api_key };
+
+    const doFetch = async function (attempt) {
+      const ctrl = new AbortController();
+      const timer = setTimeout(function () { ctrl.abort(); }, 60000);
+      try {
+        const resp = await fetch(url, { method: 'POST', headers: headers, body: JSON.stringify(body), signal: ctrl.signal });
+        clearTimeout(timer);
+        if (!resp.ok) {
+          const txt = await resp.text().catch(function () { return ''; });
+          throw new Error('AI 接口错误 (' + resp.status + '): ' + txt.slice(0, 200));
+        }
+        const data = await resp.json();
+        const choice = data.choices && data.choices[0];
+        const reply = ((choice && choice.message && choice.message.content) || '').trim();
+        if (!reply && attempt < 2) return doFetch(attempt + 1);
+        return reply;
+      } catch (e) {
+        clearTimeout(timer);
+        if (e.name === 'AbortError') throw new Error('AI 请求超时（60秒）');
+        if (attempt < 2) return doFetch(attempt + 1);
+        throw e;
+      }
+    };
+
+    const reply = await doFetch(1);
+    res.json({ reply: reply || '（无回复，请重试）', provider: target.name, model: (target.models && target.models[0]) });
+  } catch (err) {
+    res.status(500).json({ error: 'AI 调用失败: ' + err.message });
+  }
+});
 import { mkdirSync, writeFileSync, existsSync } from 'node:fs';
 import pathMod from 'node:path';
 import { homedir } from 'node:os';
