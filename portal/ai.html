@@ -241,6 +241,39 @@ body { font-family:-apple-system,BlinkMacSystemFont,"PingFang SC","Microsoft YaH
     var el = $('ai-count');
     if (el) el.textContent = aiHistory.length ? '已记住 ' + Math.ceil(aiHistory.length / 2) + ' 轮对话' : '新对话';
   }
+  // ===== 聊天记录持久化（localStorage + 服务器，按账户隔离） =====
+  function saveAiHistory() {
+    try {
+      var data = { history: aiHistory, saved_at: Date.now() };
+      localStorage.setItem('ai_chat_history_v1', JSON.stringify(data));
+      var hh = { 'Content-Type': 'application/json' };
+      if (token) hh['Authorization'] = 'Bearer ' + token;
+      fetch('/api/ai/save-state', { method: 'POST', headers: hh, body: JSON.stringify({ key: 'ai-chat-' + (token ? 'acct' : 'guest'), data: data }) });
+    } catch (e) {}
+  }
+  function loadAiHistory() {
+    // 本地优先
+    try {
+      var l = localStorage.getItem('ai_chat_history_v1');
+      if (l) { var d = JSON.parse(l); if (d.history && d.history.length) return; }
+    } catch (e) {}
+    // 服务器恢复
+    try {
+      var lh = {}; if (token) lh['Authorization'] = 'Bearer ' + token;
+      fetch('/api/ai/load-state?key=' + encodeURIComponent('ai-chat-' + (token ? 'acct' : 'guest')), { headers: lh }).then(function (r) { return r.json(); }).then(function (d) {
+        if (d.ok && d.data && d.data.history && d.data.history.length) {
+          aiHistory = d.data.history;
+          var list = $('ai-chat-list');
+          list.innerHTML = '';
+          aiHistory.forEach(function (m) {
+            if (m.role === 'user') appendAiMsg('user', m.content);
+            else appendAiMsg('bot', m.content);
+          });
+          updateAiCount();
+        }
+      }).catch(function () {});
+    } catch (e) {}
+  }
 
   function bindAiSuggests() {
     document.querySelectorAll('.ai-suggest[data-q]').forEach(function (s) {
@@ -345,6 +378,7 @@ body { font-family:-apple-system,BlinkMacSystemFont,"PingFang SC","Microsoft YaH
         aiHistory.push({ role: 'user', content: text });
         aiHistory.push({ role: 'assistant', content: data.reply || '完成' });
         updateAiCount();
+        saveAiHistory();
       })
       .catch(function (e) {
         pending.textContent = '';
@@ -750,6 +784,7 @@ body { font-family:-apple-system,BlinkMacSystemFont,"PingFang SC","Microsoft YaH
   }
 
   loadAiSettings().then(function () {
+    loadAiHistory();
     clearAiChat();
   });
 })();

@@ -73,6 +73,23 @@ CREATE TABLE IF NOT EXISTS budgets (
   created_at TEXT NOT NULL DEFAULT (datetime('now','localtime')),
   UNIQUE(ledger_id, month, category_id)
 );
+CREATE TABLE IF NOT EXISTS work_records (
+  id INTEGER PRIMARY KEY AUTOINCREMENT,
+  user_id INTEGER NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+  work_date TEXT NOT NULL,
+  start_time TEXT NOT NULL,
+  end_time TEXT NOT NULL,
+  content TEXT NOT NULL DEFAULT '',
+  created_at TEXT NOT NULL DEFAULT (datetime('now','localtime'))
+);
+CREATE INDEX IF NOT EXISTS idx_work_records_user ON work_records(user_id, work_date);
+CREATE TABLE IF NOT EXISTS salary_config (
+  user_id INTEGER PRIMARY KEY REFERENCES users(id) ON DELETE CASCADE,
+  mode TEXT NOT NULL DEFAULT 'hourly' CHECK (mode IN ('hourly','daily')),
+  hourly_rate INTEGER NOT NULL DEFAULT 3000,
+  daily_rate INTEGER NOT NULL DEFAULT 25000,
+  updated_at TEXT NOT NULL DEFAULT (datetime('now','localtime'))
+);
 CREATE TABLE IF NOT EXISTS sessions (
   token TEXT PRIMARY KEY,
   user_id INTEGER NOT NULL REFERENCES users(id) ON DELETE CASCADE,

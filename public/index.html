@@ -3,14 +3,14 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
-<meta name="description" content="记账本 — 多账本 · 预算管理 · 统计报表 · AI 助手">
+<meta name="description" content="记账本 — 多账本 · 预算管理 · 统计报表 · ">
 <meta name="theme-color" content="#4f7df9">
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
 <link rel="manifest" href='data:application/manifest+json,{"name":"记账本","short_name":"记账本","display":"standalone","background_color":"%23f6f8fc","theme_color":"%234f7df9","icons":[{"src":"data:image/svg+xml,%3Csvg xmlns=%27http://www.w3.org/2000/svg%27 viewBox=%270 0 100 100%27%3E%3Ctext y=%27.9em%27 font-size=%2790%27%3E📒%3C/text%3E%3C/svg%3E","sizes":"any","type":"image/svg+xml"}]}'>
 <title>记账本</title>
 <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>📒</text></svg>">
-<link rel="stylesheet" href="style.css?v=20260824">
+<link rel="stylesheet" href="style.css?v=20260826">
 </head>
 <body>
 <!-- 首屏品牌闪屏 -->
@@ -138,8 +138,6 @@
     <button type="button" data-tab="stats">统计</button>
     <button type="button" data-tab="budget">预算</button>
     <button type="button" data-tab="ledger">账本与分类</button>
-    <button type="button" data-tab="ai">AI 助手</button>
-    <a href="sgs.html" class="tab-link" style="align-self:center;text-decoration:none;color:var(--primary);font-weight:600;padding:8px 14px;border-radius:8px;">⚔️ 联机大厅</a>
   </nav>
 
   <main>
@@ -291,46 +289,21 @@
           </form>
         </div>
       </div>
-    </section>
+    
 
-    <!-- AI 助手页 -->
-    <section id="tab-ai" class="tab-pane">
-      <div class="card ai-card">
-        <div id="ai-chat-list" class="ai-chat-list">
-          <div class="ai-msg ai-bot">
-            <div class="ai-avatar ai-avatar-bot">🤖</div>
-            <div class="ai-bubble">你好！我是 AI 记账助手 🤖<br>可以直接说「今天午饭花了 25 块」帮你记账，也可以问我「这个月花了多少」「分析一下消费习惯」。</div>
-          </div>
-        </div>
-        <div class="ai-model-bar">
-          <span class="muted">模型</span>
-          <select id="ai-model-select" title="切换模型"></select>
-          <span class="ai-model-status" id="ai-model-status" title="模型可用">就绪</span>
-          <span class="muted sm" id="ai-count">新对话</span>
-          <button type="button" id="ai-clear-chat" class="btn ghost sm" title="清空对话上下文">清空对话</button>
-        </div>
-        <div class="ai-play-bar">
-          <button type="button" class="btn ghost sm" id="ai-play-story" title="AI 生成上月账单故事">📖 账单故事</button>
-          <button type="button" class="btn ghost sm" id="ai-play-blind" title="本周消费盲盒">🎁 本周盲盒</button>
-          <button type="button" class="btn ghost sm" id="ai-play-save" title="攒钱模拟器">💰 攒钱模拟</button>
-        </div>
-        <div class="ai-chat-input">
-          <textarea id="ai-chat-input" placeholder="说点什么…（如：昨天打车花了 18 元）" rows="1"></textarea>
-          <button type="button" id="ai-send" class="btn primary">➤ 发送</button>
-          <button type="button" id="ai-stop" class="btn danger hidden" title="停止生成">⏹ 停止</button>
-        </div>
-        <div class="ai-chat-tips muted">提示：先去「个人中心 → AI 设置」添加供应商并填写 Key</div>
-      </div>
-    </section>
+
+</section>
+
+
   </main>
-  <footer class="site-footer">📒 记账本 · 多账本 · 预算 · AI 助手 · <span id="footer-version">v1.0</span></footer>
+  <footer class="site-footer">📒 记账本 · 多账本 · 预算 ·  · <span id="footer-version">v1.0</span></footer>
 </div>
 
 <button type="button" id="back-to-top" class="back-to-top hidden" title="返回顶部">↑</button>
 
 <div id="toast" class="toast hidden"></div>
 
-<script src="particles.js?v=20260824" defer></script>
-<script src="app.js?v=20260824" defer></script>
+<script src="particles.js?v=20260826" defer></script>
+<script src="app.js?v=20260826" defer></script>
 </body>
 </html>

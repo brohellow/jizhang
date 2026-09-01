@@ -3,6 +3,52 @@ import { getProviders as _gp } from '../ai-config.js';
 
 // ============ 免登录公用 AI 路由（不挂鉴权，供主站独立 AI 页使用） ============
 export const publicRouter = Router();
+
+// 可选鉴权：带 token 则解析 user_id，不带则返回 null（免登录也能用）
+function optionalAuth(req) {
+  const header = req.headers.authorization || '';
+  const token = header.startsWith('Bearer ') ? header.slice(7) : null;
+  if (!token) return null;
+  try {
+    const row = db.prepare('SELECT s.user_id FROM sessions s WHERE s.token = ?').get(token);
+    return row ? row.user_id : null;
+  } catch (e) { return null; }
+}
+
+// ===== 江湖模拟器存档（服务器持久化，防 localStorage 丢失） =====
+// 免登录存档用 client_key（前端生成随机ID存localStorage）；登录存档用 user_id
+publicRouter.post('/save-state', (req, res) => {
+    const userId = optionalAuth(req);
+  const key = userId ? ('user:' + userId) : (req.body && req.body.key || '').toString().trim();
+  const data = req.body && req.body.data;
+  if (!key || !data || typeof data !== 'object') {
+    return res.status(400).json({ error: '缺少存档标识或数据' });
+  }
+  const ts = new Date().toISOString();
+  const row = db.prepare('SELECT id FROM wuxia_saves WHERE save_key = ?').get(key);
+  if (row) {
+    db.prepare('UPDATE wuxia_saves SET data = ?, updated_at = ? WHERE id = ?').run(JSON.stringify(data), ts, row.id);
+  } else {
+    db.prepare('INSERT INTO wuxia_saves (save_key, data, created_at, updated_at) VALUES (?, ?, ?, ?)')
+      .run(key, JSON.stringify(data), ts, ts);
+  }
+  res.json({ ok: true });
+});
+
+publicRouter.get('/load-state', (req, res) => {
+    const userId = optionalAuth(req);
+  let key = String(req.query.key || '').trim();
+  if (key.indexOf('user:') === 0) {
+    if (!userId || key !== ('user:' + userId)) return res.status(403).json({ ok: false, error: '无权读取该存档' });
+  } else {
+    key = userId ? ('user:' + userId) : key;
+  }
+  if (!key) return res.status(400).json({ error: '缺少存档标识' });
+  const row = db.prepare('SELECT data FROM wuxia_saves WHERE save_key = ?').get(key);
+  if (!row) return res.json({ ok: true, data: null });
+  try { res.json({ ok: true, data: JSON.parse(row.data) }); }
+  catch (e) { res.json({ ok: true, data: null }); }
+});
 publicRouter.post('/public-chat', async (req, res) => {
   try {
     const message = (req.body && req.body.message || '').toString().trim();
@@ -22,20 +68,26 @@ publicRouter.post('/public-chat', async (req, res) => {
     const historySlice = history.slice(-20);
 
     const url = (target.base_url || '').replace(/\/+$/, '') + '/chat/completions';
+    const sysContent = (req.body && req.body.system_prompt ? String(req.body.system_prompt).trim() : '')
+      || '你是一个友好的 AI 助手，可以回答用户的问题、聊天、给出建议。回答简洁清晰。';
+        // 消息顺序：系统设定 → 历史 → 当前消息
     const body = {
       model: (target.models && target.models[0]) || 'default',
       messages: [
-        { role: 'system', content: '你是一个友好的 AI 助手，可以回答用户的问题、聊天、给出建议。回答简洁清晰。' },
-      ].concat(historySlice, [{ role: 'user', content: message }]),
+        { role: 'system', content: sysContent },
+      ].concat(historySlice, [
+        { role: 'user', content: message },
+      ]),
       temperature: 0.7,
       max_tokens: 1024,
       stream: false,
+      thinking: { type: 'disabled' },
     };
     const headers = { 'Content-Type': 'application/json', Authorization: 'Bearer ' + target.api_key };
 
     const doFetch = async function (attempt) {
       const ctrl = new AbortController();
-      const timer = setTimeout(function () { ctrl.abort(); }, 60000);
+      const timer = setTimeout(function () { ctrl.abort(); }, 120000);
       try {
         const resp = await fetch(url, { method: 'POST', headers: headers, body: JSON.stringify(body), signal: ctrl.signal });
         clearTimeout(timer);
@@ -45,12 +97,17 @@ publicRouter.post('/public-chat', async (req, res) => {
         }
         const data = await resp.json();
         const choice = data.choices && data.choices[0];
-        const reply = ((choice && choice.message && choice.message.content) || '').trim();
+        const msg = choice && choice.message;
+        let reply = ((msg && msg.content) || '').trim();
+        // 兜底：若 content 为空但含 reasoning，提取最终答案部分
+        if (!reply && msg && msg.reasoning) {
+          reply = String(msg.reasoning).replace(/^Thinking Process:[\s\S]*?\n\n/i, '').replace(/^思考过程：[\s\S]*?\n\n/i, '').trim();
+        }
         if (!reply && attempt < 2) return doFetch(attempt + 1);
         return reply;
       } catch (e) {
         clearTimeout(timer);
-        if (e.name === 'AbortError') throw new Error('AI 请求超时（60秒）');
+        if (e.name === 'AbortError') throw new Error('AI 请求超时（120秒），请重试');
         if (attempt < 2) return doFetch(attempt + 1);
         throw e;
       }
@@ -74,6 +131,15 @@ import {
 } from '../ai-config.js';
 
 const router = Router();
+
+// 江湖存档表
+db.exec(`CREATE TABLE IF NOT EXISTS wuxia_saves (
+  id INTEGER PRIMARY KEY AUTOINCREMENT,
+  save_key TEXT NOT NULL UNIQUE,
+  data TEXT NOT NULL,
+  created_at TEXT,
+  updated_at TEXT
+)`);
 
 // ===== AI 供应商列表缓存（5 秒，配置保存时清空） =====
 const aiProvCache = new Map();
@@ -441,7 +507,12 @@ router.post('/chat', async (req, res) => {
   }
 
   const ctx = buildContext(req.user.id, ledgerId);
-  const system = [
+  // 支持自定义系统提示词（如江湖模拟器等专用场景）
+  const customSystem = (req.body && req.body.system_prompt ? String(req.body.system_prompt).trim() : '');
+  // SenseNova 对 system 角色不稳定：自定义提示并入首条 user 消息
+  const system = customSystem
+    ? ['（当前时间: ' + ctx.now + ' · ' + ctx.today + '）']
+    : [
     '你是「记账本」的 AI 助手，帮助用户记账和查询分析。',
     '今天（本地日期，唯一正确）: ' + ctx.today,
     '当前时间（北京时间）: ' + ctx.now,
@@ -539,17 +610,21 @@ router.post('/chat', async (req, res) => {
 
   const url = (target.base_url || '').replace(/\/$/, '') + '/chat/completions';
   try {
+    const firstMsg = customSystem
+      ? '[系统设定]\n' + customSystem + '\n\n' + message
+      : message;
+    const systemText = Array.isArray(system) ? system.join('\n') : String(system);
     const body = {
       model: model,
       messages: [
-        { role: 'system', content: system },
+        { role: 'system', content: systemText },
       ].concat(historySlice, [
-        { role: 'user', content: message },
+        { role: 'user', content: firstMsg },
       ]),
-      tools: tools,
-      tool_choice: 'auto',
+      ...(customSystem ? {} : { tools: tools, tool_choice: 'auto' }), // 自定义场景（江湖）不传 tools，避免 SenseNova 400
       temperature: 0.3,
       stream: false,
+      thinking: { type: 'disabled' },
     };
     const headers = { 'Content-Type': 'application/json', Authorization: 'Bearer ' + target.api_key };
     // 90 秒超时兜底（防上游挂起）
@@ -602,20 +677,23 @@ router.post('/chat', async (req, res) => {
         body: JSON.stringify({
           model: model,
           messages: [
-            { role: 'system', content: system },
+            { role: 'system', content: systemText },
           ].concat(historySlice, [
-            { role: 'user', content: message },
+            { role: 'user', content: customSystem ? '[系统设定]\n' + customSystem + '\n\n' + message : message },
           ], toolMessages),
           temperature: 0.3,
           stream: false,
+          thinking: { type: 'disabled' },
         }),
       });
       const data2 = await second.json();
       const reply = data2.choices && data2.choices[0] && data2.choices[0].message;
-      return res.json({ reply: (reply && reply.content) || '已完成', tool_results: toolResults, provider: target.name, model: model });
+      const replyText2 = (reply && reply.content) || (reply && reply.reasoning ? String(reply.reasoning).replace(/^Thinking Process:[\s\S]*?\n\n/i, '').trim() : '') || '已完成';
+      return res.json({ reply: replyText2, tool_results: toolResults, provider: target.name, model: model });
     }
 
-    res.json({ reply: (msg && msg.content) || '（无回复）', tool_results: [], provider: target.name, model: model });
+    const replyText = (msg && msg.content) || (msg && msg.reasoning ? String(msg.reasoning).replace(/^Thinking Process:[\s\S]*?\n\n/i, '').trim() : '') || '（无回复）';
+    res.json({ reply: replyText, tool_results: [], provider: target.name, model: model });
   } catch (err) {
     console.error(err);
     res.status(500).json({ error: 'AI 调用失败: ' + err.message });

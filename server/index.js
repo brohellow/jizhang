@@ -12,6 +12,7 @@ import statsRoutes from './routes/stats.js';
 import aiRoutes, { publicRouter as aiPublicRouter } from './routes/ai.js';
 import sgsRoutes from './routes/sgs.js';
 import tokenStatsRoutes from './routes/token-stats.js';
+import salaryRoutes from './routes/salary.js';
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const app = express();
@@ -74,6 +75,7 @@ app.use('/api/stats', statsRoutes);
 app.use('/api/ai', aiPublicRouter); // 免登录公用 AI（/api/ai/public-chat）
 app.use('/api/ai', aiRoutes);
 app.use('/api/sgs', sgsRoutes);
+app.use('/api/salary', salaryRoutes);
 app.use('/api', tokenStatsRoutes);
 
 // 静态前端

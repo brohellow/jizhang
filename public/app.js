@@ -233,6 +233,7 @@
 
   // ================= 登录 / 注册 =================
   function showLogin() {
+    hideSplash();
     $('#app-view').classList.add('hidden');
     $('#login-view').classList.remove('hidden');
     // 预填上次用户名
@@ -2106,10 +2107,8 @@
     } else if (name === 'ledger') {
       renderLedgers();
       renderCategories();
-    } else if (name === 'ai') {
-      loadAiSettings();
-      if (!$('#ai-chat-input').value) $('#ai-chat-input').focus();
     }
+
     // 恢复该 tab 的滚动位置
     if (tabScrollPos[name] != null) {
       setTimeout(function () { window.scrollTo(0, tabScrollPos[name]); }, 50);
@@ -2202,68 +2201,10 @@
 
     // 用户菜单：个人中心 / 模型 切换
     $('#pm-tab-profile').onclick = function () { switchPmPanel('profile'); };
-    $('#pm-tab-models').onclick = function () { switchPmPanel('models'); };
+    // 用户菜单：个人中心
+    $('#pm-tab-profile').onclick = function () { switchPmPanel('profile'); };
 
-    // 模型面板：新增供应商
-    $('#ai-add-provider').onclick = function () { openAiProviderForm(); };
-
-    // AI 聊天
-    $('#ai-send').onclick = sendAiMessage;
-    $('#ai-stop').onclick = function () {
-      if (window._aiAbort) window._aiAbort.abort();
-      var st = $('#ai-stop');
-      if (st) st.classList.add('hidden');
-      var pending2 = document.querySelector('#ai-chat-list .ai-msg:last-child .ai-bubble');
-      if (pending2 && pending2.textContent === '') pending2.textContent = '⏹ 已停止生成';
-      aiSending = false;
-      var sendBtn2 = $('#ai-send');
-      if (sendBtn2) { sendBtn2.disabled = false; sendBtn2.textContent = '➤ 发送'; }
-    };
-    $('#ai-clear-chat').onclick = function () {
-      if (aiHistory.length === 0) { toast('对话已是空的'); return; }
-      confirmDialog('确定清空当前对话吗？').then(function (ok) { if (ok) clearAiChat(); });
-    };
-    $('#ai-play-story').onclick = playStory;
-    $('#ai-play-blind').onclick = playBlind;
-    $('#ai-play-save').onclick = playSave;
-    // 模型状态点（选中模型时亮起）
-    var ms = $('#ai-model-status');
-    var mvSel = $('#ai-model-select');
-    if (ms && mvSel) {
-      var upd = function () {
-        if (mvSel.value) { ms.textContent = '就绪'; ms.title = '当前模型: ' + mvSel.value; }
-        else { ms.textContent = '未配置'; ms.title = '请先在个人中心配置模型'; ms.style.color = 'var(--expense)'; }
-      };
-      mvSel.addEventListener('change', upd);
-      setTimeout(upd, 800);
-    }
-    var aiInput = $('#ai-chat-input');
-    // placeholder 轮播提示
-    var aiHints = [
-      '说点什么…（如：昨天打车花了 18 元）',
-      '试试：帮我分析这周的消费',
-      '试试：上个月哪个分类花最多？',
-      '试试：今天午饭花了 25 块',
-    ];
-    var hintIdx = 0;
-    setInterval(function () {
-      if (document.hidden) return; // 页面隐藏时暂停（节能）
-      if (aiInput && !aiInput.value && !aiSending) {
-        hintIdx = (hintIdx + 1) % aiHints.length;
-        aiInput.placeholder = aiHints[hintIdx];
-      }
-    }, 6000);
-    var aiAutoGrow = function () {
-      aiInput.style.height = 'auto';
-      aiInput.style.height = Math.min(120, aiInput.scrollHeight) + 'px';
-    };
-    aiInput.addEventListener('input', aiAutoGrow);
-    aiInput.onkeydown = function (e) {
-      if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); sendAiMessage(); }
-      else if (e.key === 'Enter' && e.shiftKey) { setTimeout(aiAutoGrow, 0); }
-    };
-
-    // 网络状态提示
+    // 网络状态提示    // 网络状态提示
     function netStatus(online) {
       if (!online) toast('⚠️ 网络已断开，数据可能无法同步');
     }
