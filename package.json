@@ -6,7 +6,8 @@
   "description": "记账软件：多账本、预算管理、统计报表（Web 前端 + REST API，可对接微信小程序）",
   "scripts": {
     "start": "node server/index.js",
-    "dev": "node --watch server/index.js"
+    "dev": "node --watch server/index.js",
+    "test": "node --test test/*.test.js"
   },
   "engines": {
     "node": ">=22.5.0"
