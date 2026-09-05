@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>⏱️ 工时工资</title>
+<title>鈴憋笍 宸ユ椂宸ヨ祫</title>
 <style>
 * { margin:0; padding:0; box-sizing:border-box; }
 body { font-family:-apple-system,BlinkMacSystemFont,"PingFang SC","Microsoft YaHei",sans-serif; min-height:100vh; background:linear-gradient(135deg,#0f0f1a,#1a1a3e); color:#e6e6f2; display:flex; flex-direction:column; }
@@ -19,11 +19,13 @@ body { font-family:-apple-system,BlinkMacSystemFont,"PingFang SC","Microsoft YaH
 .filter-bar .muted { color:#8b8ba0; font-size:13px; }
 .filter-bar .btn { background:rgba(124,58,237,.15); border:1px solid rgba(124,58,237,.3); color:#c4b5fd; padding:7px 14px; border-radius:10px; cursor:pointer; font-size:13px; }
 .filter-bar .btn:hover { background:rgba(124,58,237,.25); }
-.stats { display:grid; grid-template-columns:repeat(3,1fr); gap:10px; }
+.stats { display:grid; grid-template-columns:repeat(3,1fr); gap:10px; margin-bottom:14px; }
 .stat { background:rgba(15,15,26,.4); border-radius:12px; padding:16px; text-align:center; }
 .stat .label { font-size:12px; color:#8b8ba0; margin-bottom:6px; }
 .stat .value { font-size:20px; font-weight:700; }
 .stat .value.income { color:#4ade80; }
+.stat .value.warning { color:#fbbf24; }
+.stat .value.danger { color:#f87171; }
 .salary-form { display:flex; gap:10px; flex-wrap:wrap; }
 .salary-form input { padding:10px 12px; border:1px solid rgba(167,139,250,.2); border-radius:10px; background:rgba(15,15,26,.6); color:#e6e6f2; font-size:14px; outline:none; flex:1; min-width:120px; }
 .salary-form input:focus { border-color:#a78bfa; }
@@ -40,7 +42,7 @@ body { font-family:-apple-system,BlinkMacSystemFont,"PingFang SC","Microsoft YaH
 .empty { text-align:center; color:#8b8ba0; padding:30px 0; font-size:13px; }
 .config-panel { background:rgba(15,15,26,.6); border:1px solid rgba(167,139,250,.3); border-radius:12px; padding:18px; margin-top:12px; }
 .config-panel h3 { font-size:15px; margin-bottom:12px; }
-.config-panel .row { display:flex; gap:10px; flex-wrap:wrap; margin-bottom:10px; }
+.config-panel .row { display:flex; gap:10px; flex-wrap:wrap; margin-bottom:10px; align-items:center; }
 .config-panel select, .config-panel input { padding:9px 12px; border:1px solid rgba(167,139,250,.2); border-radius:9px; background:rgba(15,15,26,.6); color:#e6e6f2; font-size:14px; outline:none; }
 .config-panel .btn { padding:9px 16px; border:none; border-radius:9px; background:linear-gradient(135deg,#7c3aed,#6d28d9); color:#fff; font-size:13px; font-weight:600; cursor:pointer; }
 .config-panel .hint { color:#8b8ba0; font-size:12px; margin-top:8px; line-height:1.6; }
@@ -49,16 +51,33 @@ body { font-family:-apple-system,BlinkMacSystemFont,"PingFang SC","Microsoft YaH
 .toast { position:fixed; bottom:28px; left:50%; transform:translateX(-50%); background:rgba(15,15,26,.96); border:1px solid rgba(167,139,250,.3); color:#e6e6f2; padding:9px 20px; border-radius:11px; font-size:13px; z-index:100; }
 .toast.hidden { display:none; }
 .hidden { display:none !important; }
+
+/* 移动端适配 */
+@media (max-width: 640px) {
+  .main { padding:12px; }
+  .card { padding:14px; margin-bottom:10px; }
+  .stats { grid-template-columns: repeat(2, 1fr); gap:8px; }
+  .stat { padding:12px 8px; }
+  .stat .value { font-size:16px; }
+  .filter-bar { gap:8px; }
+  .filter-bar input[type="month"] { flex:1; min-width:140px; }
+  .salary-form { flex-direction:column; }
+  .salary-form input { width:100%; min-width:0; }
+  .record-item { padding:10px; gap:8px; }
+  .record-item .amount { font-size:14px; }
+  .config-panel .row { flex-direction:column; align-items:stretch; }
+  .config-panel select, .config-panel input { width:100%; }
+}
 </style>
 </head>
 <body>
 <div class="header">
-  <a href="/" class="btn">← 返回</a>
-  <h1>⏱️ 工时工资</h1>
-  <a href="/jizhang/" class="btn">📒 记账本</a>
+  <a href="/" class="btn">鈫?杩斿洖</a>
+  <h1>鈴憋笍 宸ユ椂宸ヨ祫</h1>
+  <a href="/jizhang/" class="btn">馃搾 璁拌处鏈?/a>
 </div>
 <div class="main" id="main">
-  <!-- 未登录提示 -->
+  <!-- 鏈櫥褰曟彁绀?-->
 </div>
 <div class="toast hidden" id="toast"></div>
 <script>
@@ -69,7 +88,7 @@ body { font-family:-apple-system,BlinkMacSystemFont,"PingFang SC","Microsoft YaH
   function $(id) { return document.getElementById(id); }
   function esc(s) { return String(s == null ? '' : s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;'); }
   function toast(m) { var el = $('toast'); el.textContent = m; el.classList.remove('hidden'); setTimeout(function(){ el.classList.add('hidden'); }, 2500); }
-  function fmtMoney(cents) { return '¥' + (cents / 100).toFixed(2); }
+  function fmtMoney(cents) { return '楼' + (cents / 100).toFixed(2); }
   function currentMonth() { var d = new Date(); return d.getFullYear() + '-' + String(d.getMonth()+1).padStart(2,'0'); }
   function api(path, opts) {
     opts = opts || {};
@@ -77,45 +96,50 @@ body { font-family:-apple-system,BlinkMacSystemFont,"PingFang SC","Microsoft YaH
       method: opts.method || 'GET',
       headers: { 'Content-Type': 'application/json', 'Authorization': 'Bearer ' + token },
       body: opts.body ? JSON.stringify(opts.body) : undefined,
-    }).then(function (r) { return r.json(); }).catch(function () { return { error: '网络错误' }; });
+    }).then(function (r) { return r.json(); }).catch(function () { return { error: '缃戠粶閿欒' }; });
   }
 
   if (!token) {
-    main.innerHTML = '<div class="login-tip">请先登录后使用工时工资<br><br><a href="/">→ 返回主站登录</a></div>';
+    main.innerHTML = '<div class="login-tip">璇峰厛鐧诲綍鍚庝娇鐢ㄥ伐鏃跺伐璧?br><br><a href="/">鈫?杩斿洖涓荤珯鐧诲綍</a></div>';
     return;
   }
 
-  // 渲染页面
+  // 娓叉煋椤甸潰
   main.innerHTML =
     '<div class="card">' +
       '<div class="filter-bar">' +
         '<input type="month" id="salary-month" value="' + currentMonth() + '">' +
-        '<span class="muted" id="salary-summary">—</span>' +
-        '<button type="button" class="btn" id="salary-config-btn">⚙️ 工资设置</button>' +
+        '<span class="muted" id="salary-summary">鈥?/span>' +
+        '<button type="button" class="btn" id="salary-config-btn">鈿欙笍 宸ヨ祫璁剧疆</button>' +
       '</div>' +
       '<div class="stats">' +
         '<div class="stat"><div class="label">本月工时</div><div class="value" id="salary-total-hours">0 小时</div></div>' +
-        '<div class="stat"><div class="label">本月工资</div><div class="value income" id="salary-total-amount">¥0.00</div></div>' +
-        '<div class="stat"><div class="label">记录数</div><div class="value" id="salary-count">0 条</div></div>' +
+        '<div class="stat"><div class="label">基本工资</div><div class="value income" id="salary-base-amount">¥0.00</div></div>' +
+        '<div class="stat"><div class="label">加班费</div><div class="value warning" id="salary-overtime-amount">¥0.00</div></div>' +
+        '<div class="stat"><div class="label">应发工资</div><div class="value income" id="salary-gross-amount">¥0.00</div></div>' +
+        '<div class="stat"><div class="label">扣除项</div><div class="value danger" id="salary-deduction-amount">¥0.00</div></div>' +
+        '<div class="stat"><div class="label">实发工资</div><div class="value" id="salary-net-amount">¥0.00</div></div>' +
+      '</div></div>' +
+        '<div class="stat"><div class="label">璁板綍鏁?/div><div class="value" id="salary-count">0 鏉?/div></div>' +
       '</div>' +
-      '<div id="config-panel-box"></div>' +
+      '<div class="filter-bar" style="margin-top:12px;"><span class="muted" id="salary-overtime-info">加班工时：0 小时</span><span class="muted" id="salary-tax-info">个税：¥0.00</span><button type="button" class="btn" id="salary-export-btn" style="margin-left:auto;">📥 导出 CSV</button></div><div id="config-panel-box"></div>' +
     '</div>' +
     '<div class="card">' +
-      '<h2>➕ 记录工作</h2>' +
+      '<h2>鉃?璁板綍宸ヤ綔</h2>' +
       '<div class="salary-form">' +
         '<input type="date" id="salary-date">' +
         '<input type="time" id="salary-start">' +
         '<input type="time" id="salary-end">' +
-        '<input type="text" id="salary-content" placeholder="工作内容（如：门店值班）" maxlength="200">' +
-        '<button type="button" class="btn" id="salary-add">添加记录</button>' +
+        '<input type="text" id="salary-content" placeholder="宸ヤ綔鍐呭锛堝锛氶棬搴楀€肩彮锛? maxlength="200">' +
+        '<button type="button" class="btn" id="salary-add">娣诲姞璁板綍</button>' +
       '</div>' +
     '</div>' +
     '<div class="card">' +
-      '<h2>📋 工作记录</h2>' +
+      '<h2>馃搵 宸ヤ綔璁板綍</h2>' +
       '<div id="salary-list"></div>' +
     '</div>';
 
-  var salaryState = { mode: 'hourly', hourly: 3000, daily: 25000 };
+  var salaryState = { mode: 'hourly', hourly: 3000, daily: 25000, workStart: '09:00', workEnd: '18:00', breakStart: '', breakEnd: '' };
 
   function renderSalary() {
     var month = $('salary-month').value || currentMonth();
@@ -124,21 +148,40 @@ body { font-family:-apple-system,BlinkMacSystemFont,"PingFang SC","Microsoft YaH
       salaryState.mode = d.mode;
       salaryState.hourly = d.hourly_rate;
       salaryState.daily = d.daily_rate;
+      salaryState.workStart = d.work_start || '09:00';
+      salaryState.workEnd = d.work_end || '18:00';
+      salaryState.breakStart = d.break_start || '';
+      salaryState.breakEnd = d.break_end || '';
+      salaryState.standardHours = d.standard_hours || 8;
       $('salary-total-hours').textContent = d.total_hours + ' 小时';
-      $('salary-total-amount').textContent = fmtMoney(d.total_salary);
+      if ($('salary-base-amount')) $('salary-base-amount').textContent = fmtMoney(d.total_base_salary);
+      if ($('salary-overtime-amount')) $('salary-overtime-amount').textContent = fmtMoney(d.total_overtime_salary);
+      if ($('salary-gross-amount')) $('salary-gross-amount').textContent = fmtMoney(d.total_gross_salary);
+      if ($('salary-deduction-amount')) $('salary-deduction-amount').textContent = fmtMoney(d.total_deduction);
+      if ($('salary-net-amount')) $('salary-net-amount').textContent = fmtMoney(d.net_salary);
       $('salary-count').textContent = d.count + ' 条';
       $('salary-summary').textContent = (d.mode === 'daily' ? '日薪' : '时薪') + ' ' + (d.mode === 'daily' ? fmtMoney(d.daily_rate) : fmtMoney(d.hourly_rate));
+      if ($('salary-overtime-info')) $('salary-overtime-info').textContent = '加班工时：' + d.total_overtime_hours + ' 小时';
+      if ($('salary-tax-info')) $('salary-tax-info').textContent = '个税：¥' + d.total_tax.toFixed(2);
       var box = $('salary-list');
       if (!d.items.length) {
         box.innerHTML = '<div class="empty">本月还没有工作记录<br>点击上方「添加记录」开始</div>';
         return;
       }
       box.innerHTML = '<div class="record-list">' + d.items.map(function (it) {
+        var tags = [];
+        if (it.is_weekend) tags.push('<span style="background:rgba(251,191,36,.2);color:#fbbf24;padding:2px 6px;border-radius:4px;font-size:11px;">周末</span>');
+        if (it.is_holiday) tags.push('<span style="background:rgba(248,113,113,.2);color:#f87171;padding:2px 6px;border-radius:4px;font-size:11px;">节假日</span>');
+        var overtimeInfo = it.overtime_hours > 0 ? '<span style="color:#fbbf24;font-size:11px;margin-left:6px;">加班 ' + it.overtime_hours + 'h</span>' : '';
         return '<div class="record-item">' +
           '<div class="icon">⏱️</div>' +
-          '<div class="main"><div class="title">' + esc(it.content || '工作') + '</div>' +
-          '<div class="sub">' + it.work_date + ' · ' + it.start_time + ' - ' + it.end_time + ' · ' + it.hours + ' 小时</div></div>' +
-          '<div class="amount">' + fmtMoney(it.salary) + '</div>' +
+          '<div class="main"><div class="title">' + esc(it.content || '工作') + ' ' + tags.join(' ') + '</div>' +
+          '<div class="sub">' + it.work_date + ' · ' + it.start_time + ' - ' + it.end_time + ' · ' + it.total_hours.toFixed(2) + ' 小时' + overtimeInfo + '</div></div>' +
+          '<div class="amount" style="text-align:right;">' +
+            '<div style="font-size:12px;color:#8b8ba0;">¥' + it.base_salary.toFixed(2) + '</div>' +
+            (it.overtime_salary > 0 ? '<div style="font-size:11px;color:#fbbf24;">+¥' + it.overtime_salary.toFixed(2) + '</div>' : '') +
+            '<div style="font-weight:700;">¥' + it.gross_salary.toFixed(2) + '</div>' +
+          '</div>' +
           '<button type="button" class="del" data-del="' + it.id + '">删除</button>' +
         '</div>';
       }).join('') + '</div>';
@@ -147,6 +190,50 @@ body { font-family:-apple-system,BlinkMacSystemFont,"PingFang SC","Microsoft YaH
           var id = Number(b.dataset.del);
           if (!confirm('确定删除这条工作记录吗？')) return;
           api('/salary/records/' + id, { method: 'DELETE' }).then(function () { toast('已删除'); renderSalary(); });
+        };
+      });
+    });
+  }
+      box.innerHTML = '<div class="record-list">' + d.items.map(function (it) {
+        var tags = [];
+        if (it.is_weekend) tags.push('<span style="background:rgba(251,191,36,.2);color:#fbbf24;padding:2px 6px;border-radius:4px;font-size:11px;">周末</span>');
+        if (it.is_holiday) tags.push('<span style="background:rgba(248,113,113,.2);color:#f87171;padding:2px 6px;border-radius:4px;font-size:11px;">节假日</span>');
+        var overtimeInfo = it.overtime_hours > 0 ? '<span style="color:#fbbf24;font-size:11px;margin-left:6px;">加班 ' + it.overtime_hours + 'h</span>' : '';
+        return '<div class="record-item">' +
+          '<div class="icon">⏱️</div>' +
+          '<div class="main"><div class="title">' + esc(it.content || '工作') + ' ' + tags.join(' ') + '</div>' +
+          '<div class="sub">' + it.work_date + ' · ' + it.start_time + ' - ' + it.end_time + ' · ' + it.total_hours.toFixed(2) + ' 小时' + overtimeInfo + '</div></div>' +
+          '<div class="amount" style="text-align:right;">' +
+            '<div style="font-size:12px;color:#8b8ba0;">¥' + it.base_salary.toFixed(2) + '</div>' +
+            (it.overtime_salary > 0 ? '<div style="font-size:11px;color:#fbbf24;">+¥' + it.overtime_salary.toFixed(2) + '</div>' : '') +
+            '<div style="font-weight:700;">¥' + it.gross_salary.toFixed(2) + '</div>' +
+          '</div>' +
+          '<button type="button" class="del" data-del="' + it.id + '">删除</button>' +
+        '</div>';
+      }).join('') + '</div>';
+      box.querySelectorAll('[data-del]').forEach(function (b) {
+        b.onclick = function () {
+          var id = Number(b.dataset.del);
+          if (!confirm('确定删除这条工作记录吗？')) return;
+          api('/salary/records/' + id, { method: 'DELETE' }).then(function () { toast('已删除'); renderSalary(); });
+        };
+      });
+    });
+  }
+      box.innerHTML = '<div class="record-list">' + d.items.map(function (it) {
+        return '<div class="record-item">' +
+          '<div class="icon">鈴憋笍</div>' +
+          '<div class="main"><div class="title">' + esc(it.content || '宸ヤ綔') + '</div>' +
+          '<div class="sub">' + it.work_date + ' 路 ' + it.start_time + ' - ' + it.end_time + ' 路 ' + it.hours + ' 灏忔椂</div></div>' +
+          '<div class="amount">' + fmtMoney(it.salary) + '</div>' +
+          '<button type="button" class="del" data-del="' + it.id + '">鍒犻櫎</button>' +
+        '</div>';
+      }).join('') + '</div>';
+      box.querySelectorAll('[data-del]').forEach(function (b) {
+        b.onclick = function () {
+          var id = Number(b.dataset.del);
+          if (!confirm('纭畾鍒犻櫎杩欐潯宸ヤ綔璁板綍鍚楋紵')) return;
+          api('/salary/records/' + id, { method: 'DELETE' }).then(function () { toast('宸插垹闄?); renderSalary(); });
         };
       });
     });
@@ -162,17 +249,89 @@ body { font-family:-apple-system,BlinkMacSystemFont,"PingFang SC","Microsoft YaH
           '<select id="salary-mode"><option value="hourly"' + (salaryState.mode === 'hourly' ? ' selected' : '') + '>按小时计薪</option><option value="daily"' + (salaryState.mode === 'daily' ? ' selected' : '') + '>按天计薪（日薪）</option></select>' +
           '<span style="align-self:center;color:#8b8ba0;">¥</span><input type="number" id="salary-hourly" value="' + (salaryState.hourly / 100).toFixed(2) + '" placeholder="时薪（元/小时）" step="0.01" min="0.01">' +
           '<span style="align-self:center;color:#8b8ba0;">¥</span><input type="number" id="salary-daily" value="' + (salaryState.daily / 100).toFixed(2) + '" placeholder="日薪（元/天）" step="0.01" min="0.01">' +
-          '<button type="button" class="btn" id="salary-config-save">保存设置</button>' +
         '</div>' +
-        '<div class="hint">默认时薪 30 元/小时、日薪 250 元/天。<br>按小时模式：工资 = 时薪 × 工时（跨天自动 +24 小时）；按天模式：每条记录 = 日薪。</div>' +
+        '<div class="row">' +
+          '<span style="align-self:center;color:#8b8ba0;font-size:13px;">默认上班</span>' +
+          '<input type="time" id="salary-work-start" value="' + salaryState.workStart + '">' +
+          '<span style="align-self:center;color:#8b8ba0;font-size:13px;">至</span>' +
+          '<input type="time" id="salary-work-end" value="' + salaryState.workEnd + '">' +
+        '</div>' +
+        '<div class="row">' +
+          '<span style="align-self:center;color:#8b8ba0;font-size:13px;">休息时间</span>' +
+          '<input type="time" id="salary-break-start" value="' + salaryState.breakStart + '">' +
+          '<span style="align-self:center;color:#8b8ba0;font-size:13px;">至</span>' +
+          '<input type="time" id="salary-break-end" value="' + salaryState.breakEnd + '">' +
+          '<span style="align-self:center;color:#8b8ba0;font-size:12px;">（休息不计工资，可留空）</span>' +
+        '</div>' +
+        '<div class="row">' +
+          '<span style="align-self:center;color:#8b8ba0;font-size:13px;">标准工时（小时/天）</span>' +
+          '<input type="number" id="salary-standard-hours" value="' + (salaryState.standardHours || 8) + '" placeholder="8" step="0.5" min="1" max="24" style="width:80px;">' +
+          '<span style="align-self:center;color:#8b8ba0;font-size:12px;">超过此时长算加班</span>' +
+        '</div>' +
+        '<h3 style="margin-top:18px;font-size:14px;color:#c4b5fd;">💰 扣除项配置</h3>' +
+        '<div class="row">' +
+          '<span style="align-self:center;color:#8b8ba0;font-size:13px;">个税起征点</span>' +
+          '<input type="number" id="salary-tax-threshold" value="5000" placeholder="元/月" step="100">' +
+        '</div>' +
+        '<div class="row">' +
+          '<span style="align-self:center;color:#8b8ba0;font-size:13px;">社保（月）</span>' +
+          '<input type="number" id="salary-social" value="0" placeholder="元/月" step="100">' +
+          '<span style="align-self:center;color:#8b8ba0;font-size:13px;">公积金（月）</span>' +
+          '<input type="number" id="salary-housing" value="0" placeholder="元/月" step="100">' +
+        '</div>' +
+        '<div class="row">' +
+          '<span style="align-self:center;color:#8b8ba0;font-size:13px;">其他扣除</span>' +
+          '<input type="number" id="salary-other" value="0" placeholder="元/月" step="100">' +
+        '</div>' +
+        '<h3 style="margin-top:18px;font-size:14px;color:#c4b5fd;">📅 节假日配置</h3>' +
+        '<div class="row">' +
+          '<input type="text" id="salary-holidays" placeholder="节假日日期，逗号分隔（如：05-01,05-02,10-01）" style="flex:1;">' +
+        '</div>' +
+        '<button type="button" class="btn" id="salary-config-save" style="margin-top:12px;">保存设置</button>' +
+        '<div class="hint">默认时薪 30 元/小时、日薪 250 元/天。<br>按小时模式：工资 = 时薪 × 工时（扣除休息时间，跨天自动 +24 小时）；按天模式：每条记录 = 日薪。<br>加班规则：工作日 1.5 倍、周末 2 倍、节假日 3 倍。<br>设置默认上班时间后，添加记录会自动填入。</div>' +
       '</div>';
       $('salary-config-save').onclick = function () {
         var mode = $('salary-mode').value;
         var hourly = Math.round(parseFloat($('salary-hourly').value || '0') * 100);
         var daily = Math.round(parseFloat($('salary-daily').value || '0') * 100);
         if (hourly <= 0 || daily <= 0) { toast('请输入有效数值'); return; }
-        api('/salary/config', { method: 'PUT', body: { mode: mode, hourly_rate: hourly, daily_rate: daily } }).then(function () {
+        var holidaysStr = String($('salary-holidays').value || '').trim();
+        var holidays = holidaysStr ? holidaysStr.split(/[,，]/).map(function (h) { return h.trim(); }).filter(Boolean) : [];
+        var body = {
+          mode: mode,
+          hourly_rate: hourly,
+          daily_rate: daily,
+          work_start: $('salary-work-start').value || '09:00',
+          work_end: $('salary-work-end').value || '18:00',
+          break_start: $('salary-break-start').value || '',
+          break_end: $('salary-break-end').value || '',
+          tax_threshold: parseFloat($('salary-tax-threshold').value || '5000'),
+          social_security: parseFloat($('salary-social').value || '0'),
+          housing_fund: parseFloat($('salary-housing').value || '0'),
+          other_deduction: parseFloat($('salary-other').value || '0'),
+          standard_hours: parseFloat($('salary-standard-hours').value || '8'),
+          holidays: holidays,
+        };
+        api('/salary/config', { method: 'PUT', body: body }).then(function () {
           toast('工资规则已保存');
+          salaryState.workStart = body.work_start;
+          salaryState.workEnd = body.work_end;
+          salaryState.breakStart = body.break_start;
+          salaryState.breakEnd = body.break_end;
+          box.classList.add('hidden');
+          renderSalary();
+        });
+      };
+    } else {
+      box.classList.add('hidden');
+    }
+  };
+        api('/salary/config', { method: 'PUT', body: body }).then(function () {
+          toast('宸ヨ祫瑙勫垯宸蹭繚瀛?);
+          salaryState.workStart = body.work_start;
+          salaryState.workEnd = body.work_end;
+          salaryState.breakStart = body.break_start;
+          salaryState.breakEnd = body.break_end;
           box.classList.add('hidden');
           renderSalary();
         });
@@ -182,9 +341,12 @@ body { font-family:-apple-system,BlinkMacSystemFont,"PingFang SC","Microsoft YaH
     }
   }
 
-  // 初始化
-  var today = new Date();
+  // 鍒濆鍖栧鍖?  var today = new Date();
   $('salary-date').value = today.getFullYear() + '-' + String(today.getMonth()+1).padStart(2,'0') + '-' + String(today.getDate()).padStart(2,'0');
+  $('salary-start').value = salaryState.workStart || '09:00';
+  $('salary-end').value = salaryState.workEnd || '18:00';
+  var stdHoursInput = $('salary-standard-hours');
+  if (stdHoursInput) stdHoursInput.value = salaryState.standardHours || 8;
   $('salary-month').onchange = renderSalary;
   $('salary-config-btn').onclick = openConfig;
   $('salary-add').onclick = function () {
@@ -192,12 +354,14 @@ body { font-family:-apple-system,BlinkMacSystemFont,"PingFang SC","Microsoft YaH
     var start = $('salary-start').value;
     var end = $('salary-end').value;
     var content = $('salary-content').value.trim();
-    if (!date) { toast('请选择日期'); return; }
-    if (!start || !end) { toast('请选择开始和结束时间'); return; }
+    if (!date) { toast('璇烽€夋嫨鏃ユ湡'); return; }
+    if (!start || !end) { toast('璇烽€夋嫨寮€濮嬪拰缁撴潫鏃堕棿'); return; }
     api('/salary/records', { method: 'POST', body: { work_date: date, start_time: start, end_time: end, content: content } }).then(function (d) {
       if (d.error) { toast(d.error); return; }
-      toast('已添加工作记录');
+      toast('宸叉坊鍔犲伐浣滆褰?);
       $('salary-content').value = '';
+      $('salary-start').value = salaryState.workStart || '09:00';
+      $('salary-end').value = salaryState.workEnd || '18:00';
       renderSalary();
     });
   };

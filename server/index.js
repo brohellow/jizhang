@@ -80,6 +80,7 @@ app.use('/api', tokenStatsRoutes);
 
 // 静态前端
 app.use(express.static(path.join(__dirname, '..', 'public')));
+app.use('/portal', express.static(path.join(__dirname, '..', 'portal')));
 
 // 未匹配的 API 路径
 app.use('/api', (req, res) => {

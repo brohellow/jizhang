@@ -11,3 +11,4 @@ project.private.config.json
 /project.config.json
 # 数据库备份
 /backups/
+.workbuddy/

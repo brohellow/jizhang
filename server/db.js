@@ -88,6 +88,16 @@ CREATE TABLE IF NOT EXISTS salary_config (
   mode TEXT NOT NULL DEFAULT 'hourly' CHECK (mode IN ('hourly','daily')),
   hourly_rate INTEGER NOT NULL DEFAULT 3000,
   daily_rate INTEGER NOT NULL DEFAULT 25000,
+  work_start TEXT NOT NULL DEFAULT '09:00',
+  work_end TEXT NOT NULL DEFAULT '18:00',
+  break_start TEXT,
+  break_end TEXT,
+  tax_threshold INTEGER NOT NULL DEFAULT 5000,
+  social_security INTEGER NOT NULL DEFAULT 0,
+  housing_fund INTEGER NOT NULL DEFAULT 0,
+  other_deduction INTEGER NOT NULL DEFAULT 0,
+  standard_hours REAL NOT NULL DEFAULT 8,
+  holidays TEXT NOT NULL DEFAULT '[]',
   updated_at TEXT NOT NULL DEFAULT (datetime('now','localtime'))
 );
 CREATE TABLE IF NOT EXISTS sessions (
@@ -98,6 +108,12 @@ CREATE TABLE IF NOT EXISTS sessions (
 );
 CREATE INDEX IF NOT EXISTS idx_sessions_user ON sessions(user_id);
 `);
+
+// ===== 兼容旧表：salary_config 补充时段字段（幂等，移到 exec 外） =====
+try { db.exec("ALTER TABLE salary_config ADD COLUMN work_start TEXT NOT NULL DEFAULT '09:00'"); } catch (e) {}
+try { db.exec("ALTER TABLE salary_config ADD COLUMN work_end TEXT NOT NULL DEFAULT '18:00'"); } catch (e) {}
+try { db.exec("ALTER TABLE salary_config ADD COLUMN break_start TEXT"); } catch (e) {}
+try { db.exec("ALTER TABLE salary_config ADD COLUMN break_end TEXT"); } catch (e) {}
 
 export function hashPassword(password) {
   const salt = crypto.randomBytes(16).toString('hex');
@@ -202,7 +218,7 @@ function seedDemoBudgets(userId, ledgerId) {
   const cats = db.prepare("SELECT id, name FROM categories WHERE user_id = ? AND type = 'expense'").all(userId);
   db.prepare('INSERT INTO budgets (user_id, ledger_id, month, category_id, amount) VALUES (?, ?, ?, NULL, ?)')
     .run(userId, ledgerId, monthStr, 500000); // 本月总预算 5000 元
-  const catBudgets = { 餐饮: 80000, 交通: 30000, 购物: 50000 };
+  const catBudgets = { '餐饮': 80000, '交通': 30000, '购物': 50000 };
   cats.forEach(function (c) {
     if (catBudgets[c.name]) {
       db.prepare('INSERT INTO budgets (user_id, ledger_id, month, category_id, amount) VALUES (?, ?, ?, ?, ?)')
@@ -210,3 +226,4 @@ function seedDemoBudgets(userId, ledgerId) {
     }
   });
 }
+
