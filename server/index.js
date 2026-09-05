@@ -1,7 +1,7 @@
 import express from 'express';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
-import { ensureDemoUser } from './db.js';
+import { db, ensureDemoUser } from './db.js';
 import { rateLimit, loginThrottle } from './rate-limit.js';
 import authRoutes from './routes/auth.js';
 import ledgerRoutes from './routes/ledgers.js';
@@ -16,6 +16,24 @@ import salaryRoutes from './routes/salary.js';
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const app = express();
+
+// ===== Session 过期清理（启动时立即执行 + 每小时定期执行） =====
+function cleanExpiredSessions() {
+  try {
+    const result = db.prepare("DELETE FROM sessions WHERE expires_at < datetime('now','localtime')").run();
+    if (result.changes > 0) {
+      console.log(`[session] 清理了 ${result.changes} 个过期会话`);
+    }
+  } catch (err) {
+    console.error('[session] 清理过期会话失败:', err.message);
+  }
+}
+
+// 启动时立即清理一次
+cleanExpiredSessions();
+
+// 每小时清理一次
+setInterval(cleanExpiredSessions, 60 * 60 * 1000).unref();
 
 app.use(express.json({ limit: '512kb' })); // 限制请求体大小，防超大 JSON
 

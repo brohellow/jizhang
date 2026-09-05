@@ -8,13 +8,6 @@ const router = Router();
 // ===== me 缓存定期清理 =====
 setInterval(function () { const n = Date.now(); for (const [k, v] of meCache) if (n - v.t >= ME_CACHE_TTL * 4) meCache.delete(k); }, 60000).unref();
 
-// ===== 定期清理过期会话（防 sessions 表膨胀） =====
-setInterval(function () {
-  try {
-    db.prepare("DELETE FROM sessions WHERE expires_at < datetime('now','localtime')").run();
-  } catch (e) {}
-}, 60 * 60 * 1000).unref(); // 每小时
-
 function publicUser(u) {
   return { id: u.id, username: u.username, nickname: u.nickname, current_ledger_id: u.current_ledger_id, created_at: u.created_at };
 }
