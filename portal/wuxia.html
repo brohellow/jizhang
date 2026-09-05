@@ -300,7 +300,7 @@ function systemPrompt() {
     var loading = appendLoading();
 
     var historyMsgs = [];
-    memory.history.slice(-16).forEach(function (h) {
+    memory.history.slice(-50).forEach(function (h) {
       historyMsgs.push({ role: 'user', content: h.user });
       if (h.bot) historyMsgs.push({ role: 'assistant', content: h.bot });
     });

@@ -477,7 +477,7 @@ router.post('/chat', async (req, res) => {
     if (!content) return;
     history.push({ role: role, content: content });
   });
-  const MAX_HISTORY = 20;
+  const MAX_HISTORY = 50;
   const historySlice = history.slice(-MAX_HISTORY);
 
   // 选出目标供应商
