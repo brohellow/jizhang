@@ -253,16 +253,16 @@ function systemPrompt() {
         if (t) extras.push(t);
       }
     });
-    // 非 LaTeX 文本：折叠成一行小字（点击展开）
+    // 非 LaTeX 文本：默认展开（点击可收起）
     if (extras.length) {
       var fold = document.createElement('div');
       fold.className = 'plain-fold';
-      fold.innerHTML = '<span class="plain-fold-btn">▼ 剧情文本</span><div class="plain-fold-body hidden">' + esc(extras.join(String.fromCharCode(10))) + '</div>';
+      fold.innerHTML = '<span class="plain-fold-btn">▲ 收起</span><div class="plain-fold-body">' + esc(extras.join(String.fromCharCode(10))) + '</div>';
       var fbtn = fold.querySelector('.plain-fold-btn');
       fbtn.onclick = function () {
         var body = fold.querySelector('.plain-fold-body');
-        var open = body.classList.toggle('hidden');
-        fbtn.textContent = open ? '▼ 剧情文本' : '▲ 收起';
+        var collapsed = body.classList.toggle('hidden');
+        fbtn.textContent = collapsed ? '▼ 剧情文本' : '▲ 收起';
       };
       textEl.appendChild(fold);
     }
