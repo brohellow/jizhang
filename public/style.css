@@ -937,6 +937,9 @@ main { max-width: 1140px; margin: 0 auto; padding: 20px; }
 
 @media (max-width: 860px) {
   .grid-2 { grid-template-columns: 1fr; }
+  /* 单列布局取消表单卡片的 sticky：修复手机端聚焦备注/金额等输入框时
+     键盘弹出导致页面错位、看不到正在输入的文字 */
+  .grid-2 .card:first-child { position: static; }
   .record-item .r-date { display: none; }
   .category-grid { grid-template-columns: repeat(4, 1fr); }
 }
