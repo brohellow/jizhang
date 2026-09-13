@@ -38,8 +38,8 @@ function isHoliday(dateStr, holidays) {
     '05-01', '05-02', '05-03', // 五一
     '10-01', '10-02', '10-03', '10-04', '10-05', '10-06', '10-07', // 国庆
   ];
-  const springFestival = ['01-28','01-29','01-30','01-31','02-01','02-02','02-03','02-04','02-05','02-06']; // 示例春节
-  const allHolidays = fixedHolidays.concat(holidays || [], springFestival);
+  // 浮动假日（春节/清明/端午/中秋等）完全交给配置 holidays，避免年份硬编码误判
+  const allHolidays = fixedHolidays.concat(holidays || []);
   return allHolidays.indexOf(key) !== -1;
 }
 
@@ -82,10 +82,10 @@ function calcSalaryDetail(workDate, startTime, endTime, content, cfg, holidays) 
   let baseHours = 0;      // 基本工时（按标准工作制）
   let overtimeHours = 0;  // 加班工时
   let hourlyRate = cfg.hourly_rate / 100; // 转换为元
+  const standardHours = Number(cfg.standard_hours) || 8; // 标准工时/天（可配置）
   
   if (cfg.mode === 'hourly') {
-    // 标准工作日：8小时/天，超过算加班
-    const standardHours = 8;
+    // 标准工作日：超过标准工时算加班
     if (totalHours > standardHours) {
       baseHours = standardHours;
       overtimeHours = totalHours - standardHours;
@@ -130,10 +130,10 @@ function calcSalaryDetail(workDate, startTime, endTime, content, cfg, holidays) 
     let salary = dailyRate;
     let overtimeSalary = 0;
     
-    // 超过8小时算加班
-    if (totalHours > 8) {
-      const overtimeHours = totalHours - 8;
-      let overtimeRate = dailyRate / 8;
+    // 超过标准工时算加班
+    if (totalHours > standardHours) {
+      const overtimeHours = totalHours - standardHours;
+      let overtimeRate = dailyRate / standardHours;
       if (holiday) {
         overtimeRate = overtimeRate * 3;
       } else if (weekend) {
@@ -151,10 +151,10 @@ function calcSalaryDetail(workDate, startTime, endTime, content, cfg, holidays) 
       end_time: endTime,
       content: content || '工作',
       total_hours: Math.round(totalHours * 100) / 100,
-      base_hours: 8,
-      overtime_hours: Math.round((totalHours - 8) * 100) / 100,
-      hourly_rate: dailyRate / 8,
-      overtime_rate: dailyRate / 8 * (holiday ? 3 : weekend ? 2 : 1.5),
+      base_hours: standardHours,
+      overtime_hours: Math.round((totalHours - standardHours) * 100) / 100,
+      hourly_rate: dailyRate / standardHours,
+      overtime_rate: dailyRate / standardHours * (holiday ? 3 : weekend ? 2 : 1.5),
       base_salary: dailyRate,
       overtime_salary: overtimeSalary,
       gross_salary: salary,
@@ -217,50 +217,53 @@ router.put('/config', (req, res) => {
   res.json({ ok: true });
 });
 
-// 简化个税计算（累计预扣法）
-function calcTax(monthlyIncome, month, cumulativeIncome) {
-  const threshold = 5000; // 起征点
-  const taxable = cumulativeIncome - threshold * month;
-  if (taxable <= 0) return 0;
-  
-  // 简化税率表
-  const brackets = [
-    { limit: 36000, rate: 0.03, deduction: 0 },
-    { limit: 144000, rate: 0.10, deduction: 2520 },
-    { limit: 300000, rate: 0.20, deduction: 16920 },
-    { limit: 420000, rate: 0.25, deduction: 31920 },
-    { limit: 660000, rate: 0.30, deduction: 52920 },
-    { limit: 960000, rate: 0.35, deduction: 85920 },
-    { limit: Infinity, rate: 0.45, deduction: 181920 },
-  ];
-  
-  const prevCumulative = cumulativeIncome - monthlyIncome;
-  const prevTax = calcTaxBracket(prevCumulative - threshold * (month - 1), month - 1);
-  const currentTax = calcTaxBracket(taxable, month);
-  
-  return Math.round((currentTax - prevTax) * 100) / 100;
-}
+// ===== 累计预扣法个税 =====
+// 月预扣税率表（累计应纳税所得额 → 税率 / 速算扣除数）
+const TAX_BRACKETS = [
+  { limit: 36000, rate: 0.03, deduction: 0 },
+  { limit: 144000, rate: 0.10, deduction: 2520 },
+  { limit: 300000, rate: 0.20, deduction: 16920 },
+  { limit: 420000, rate: 0.25, deduction: 31920 },
+  { limit: 660000, rate: 0.30, deduction: 52920 },
+  { limit: 960000, rate: 0.35, deduction: 85920 },
+  { limit: Infinity, rate: 0.45, deduction: 181920 },
+];
 
-function calcTaxBracket(taxable, month) {
+// 累计应纳税所得额 → 累计已预扣税额
+function calcTaxBracket(taxable) {
   if (taxable <= 0) return 0;
-  const brackets = [
-    { limit: 36000, rate: 0.03, deduction: 0 },
-    { limit: 144000, rate: 0.10, deduction: 2520 },
-    { limit: 300000, rate: 0.20, deduction: 16920 },
-    { limit: 420000, rate: 0.25, deduction: 31920 },
-    { limit: 660000, rate: 0.30, deduction: 52920 },
-    { limit: 960000, rate: 0.35, deduction: 85920 },
-    { limit: Infinity, rate: 0.45, deduction: 181920 },
-  ];
-  
-  for (const b of brackets) {
-    if (taxable <= b.limit) {
-      return taxable * b.rate - b.deduction;
-    }
+  for (const b of TAX_BRACKETS) {
+    if (taxable <= b.limit) return taxable * b.rate - b.deduction;
   }
   return 0;
 }
 
+// 本月应扣个税 = 累计预扣(本年至今) - 累计预扣(截至上月)
+// currentMonthIncome: 本月应发(元)；month: 月份 1-12；cumulativeIncome: 本年1月至本月累计应发(元)；threshold: 起征点(元/月)
+function calcTax(currentMonthIncome, month, cumulativeIncome, threshold) {
+  const th = Number(threshold) || 5000;
+  const taxable = cumulativeIncome - th * month;
+  if (taxable <= 0) return 0;
+  const prevCumulative = cumulativeIncome - currentMonthIncome;
+  const prevTax = calcTaxBracket(prevCumulative - th * (month - 1));
+  const currentTax = calcTaxBracket(taxable);
+  const tax = currentTax - prevTax;
+  return Math.max(0, Math.round(tax * 100) / 100);
+}
+
+// 计算某用户当年 1 月至目标月的累计应发工资（元），用于累计预扣
+function calcYearToDateGross(userId, year, month, cfg, holidays) {
+  const startMonth = year + '-01';
+  const endMonth = year + '-' + String(month).padStart(2, '0');
+  const rows = db.prepare(
+    "SELECT work_date, start_time, end_time FROM work_records WHERE user_id = ? AND substr(work_date, 1, 7) >= ? AND substr(work_date, 1, 7) <= ?"
+  ).all(userId, startMonth, endMonth);
+  let cumulative = 0;
+  rows.forEach(function (r) {
+    cumulative += calcSalaryDetail(r.work_date, r.start_time, r.end_time, '', cfg, holidays).gross_salary;
+  });
+  return cumulative;
+}
 router.get('/records', (req, res) => {
   const now = new Date();
   const defMonth = now.getFullYear() + '-' + String(now.getMonth() + 1).padStart(2, '0');
@@ -296,7 +299,9 @@ router.get('/records', (req, res) => {
 
   // 计算扣除项和实发工资
   const monthNum = parseInt(month.split('-')[1], 10);
-  const tax = calcTax(totalGrossSalary, monthNum, totalGrossSalary);
+  const year = parseInt(month.slice(0, 4), 10);
+  const cumulativeGross = calcYearToDateGross(req.user.id, year, monthNum, cfg, holidays);
+  const tax = calcTax(totalGrossSalary, monthNum, cumulativeGross, cfg.tax_threshold);
   const totalDeduction = (cfg.social_security || 0) + (cfg.housing_fund || 0) + (cfg.other_deduction || 0) + tax;
   const netSalary = Math.round((totalGrossSalary - totalDeduction) * 100) / 100;
 
@@ -377,7 +382,9 @@ router.get('/export', (req, res) => {
   });
 
   const monthNum = parseInt(month.split('-')[1], 10);
-  const tax = calcTax(totalGrossSalary, monthNum, totalGrossSalary);
+  const year = parseInt(month.slice(0, 4), 10);
+  const cumulativeGross = calcYearToDateGross(req.user.id, year, monthNum, cfg, holidays);
+  const tax = calcTax(totalGrossSalary, monthNum, cumulativeGross, cfg.tax_threshold);
   const totalDeduction = (cfg.social_security || 0) + (cfg.housing_fund || 0) + (cfg.other_deduction || 0) + tax;
   const netSalary = Math.round((totalGrossSalary - totalDeduction) * 100) / 100;
 

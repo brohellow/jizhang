@@ -51,7 +51,7 @@ publicRouter.get('/load-state', (req, res) => {
 });
 publicRouter.post('/public-chat', async (req, res) => {
   try {
-    const message = (req.body && req.body.message || '').toString().trim();
+    const message = (req.body && req.body.message || '').toString().trim().slice(0, 2000);
     if (!message) return res.status(400).json({ error: '请输入内容' });
     const providers = _gp([]).filter(function (p) { return p.enabled !== false; });
     if (!providers.length) return res.status(400).json({ error: '服务器未配置公用 AI 供应商' });
@@ -62,13 +62,13 @@ publicRouter.post('/public-chat', async (req, res) => {
     rawHistory.forEach(function (m) {
       if (!m || typeof m !== 'object') return;
       const role = m.role === 'assistant' ? 'assistant' : 'user';
-      const content = String(m.content == null ? '' : m.content).trim();
+      const content = String(m.content == null ? '' : m.content).trim().slice(0, 2000);
       if (content) history.push({ role: role, content: content });
     });
     const historySlice = history.slice(-20);
 
     const url = (target.base_url || '').replace(/\/+$/, '') + '/chat/completions';
-    const sysContent = (req.body && req.body.system_prompt ? String(req.body.system_prompt).trim() : '')
+    const sysContent = (req.body && req.body.system_prompt ? String(req.body.system_prompt).trim().slice(0, 8000) : '')
       || '你是一个友好的 AI 助手，可以回答用户的问题、聊天、给出建议。回答简洁清晰。';
         // 消息顺序：系统设定 → 历史 → 当前消息
     const body = {

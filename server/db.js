@@ -70,6 +70,13 @@ try { db.exec("ALTER TABLE salary_config ADD COLUMN work_start TEXT NOT NULL DEF
 try { db.exec("ALTER TABLE salary_config ADD COLUMN work_end TEXT NOT NULL DEFAULT '18:00'"); } catch (e) {}
 try { db.exec("ALTER TABLE salary_config ADD COLUMN break_start TEXT"); } catch (e) {}
 try { db.exec("ALTER TABLE salary_config ADD COLUMN break_end TEXT"); } catch (e) {}
+// 兼容更老的库：补齐个税/社保/公积金/标准工时/节假日字段（001_init.sql 已含，这里幂等补齐）
+try { db.exec("ALTER TABLE salary_config ADD COLUMN tax_threshold INTEGER NOT NULL DEFAULT 5000"); } catch (e) {}
+try { db.exec("ALTER TABLE salary_config ADD COLUMN social_security INTEGER NOT NULL DEFAULT 0"); } catch (e) {}
+try { db.exec("ALTER TABLE salary_config ADD COLUMN housing_fund INTEGER NOT NULL DEFAULT 0"); } catch (e) {}
+try { db.exec("ALTER TABLE salary_config ADD COLUMN other_deduction INTEGER NOT NULL DEFAULT 0"); } catch (e) {}
+try { db.exec("ALTER TABLE salary_config ADD COLUMN standard_hours REAL NOT NULL DEFAULT 8"); } catch (e) {}
+try { db.exec("ALTER TABLE salary_config ADD COLUMN holidays TEXT NOT NULL DEFAULT '[]'"); } catch (e) {}
 
 export function hashPassword(password) {
   const salt = crypto.randomBytes(16).toString('hex');

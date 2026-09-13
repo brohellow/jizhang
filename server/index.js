@@ -76,6 +76,12 @@ app.use('/api/auth/login', rateLimit({
   max: 30,
   message: '登录尝试过于频繁，请 15 分钟后再试',
 }));
+// AI 免登录公用接口：每 IP 每小时 30 次（防公用 key 额度被刷穿）
+app.use('/api/ai/public-chat', rateLimit({
+  windowMs: 60 * 60 * 1000,
+  max: 30,
+  message: 'AI 使用过于频繁，请 1 小时后再试',
+}));
 // 发短信/其他敏感接口预留（暂无）
 // 全局 API：每 IP 每分钟 300 次（宽松，防刷爆）
 app.use('/api', rateLimit({
