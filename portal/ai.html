@@ -107,6 +107,8 @@ body { font-family:-apple-system,BlinkMacSystemFont,"PingFang SC","Microsoft YaH
       <select id="ai-model-select" title="切换模型"></select>
       <span class="status" id="ai-model-status">—</span>
       <span class="status" id="ai-count" style="flex:1;text-align:right;font-size:12px;">新对话</span>
+      <button type="button" class="btn" id="ai-save-conv">💾 保存</button>
+      <button type="button" class="btn" id="ai-list-conv">📂 会话</button>
       <button type="button" class="btn" id="ai-clear-chat">清空</button>
     </div>
     <div class="tools">
@@ -406,6 +408,38 @@ body { font-family:-apple-system,BlinkMacSystemFont,"PingFang SC","Microsoft YaH
   };
   $('ai-clear-chat').onclick = function () {
     confirmDialog('确定清空对话吗？').then(function (ok) { if (ok) clearAiChat(); });
+  };
+  // ===== AI 会话云端管理 =====
+  $('ai-save-conv').onclick = function () {
+    if (!aiHistory.length) { toast('当前没有对话内容'); return; }
+    var title = (aiHistory[0] && aiHistory[0].content || '新对话').slice(0, 20) || '新对话';
+    api('/ai/conversations', { method: 'POST', body: { title: title, messages: aiHistory } }).then(function (d) {
+      if (d.id) toast('会话已保存到云端 ✅');
+    }).catch(function (e) { toast(e.message); });
+  };
+  $('ai-list-conv').onclick = function () {
+    api('/ai/conversations').then(function (list) {
+      if (!list.length) { toast('还没有保存过会话'); return; }
+      var items = list.map(function (c) { return c.id + '. ' + c.title + '（' + c.message_count + ' 条）'; });
+      var val = prompt('云端会话（输入编号加载，输入 d+编号删除）：\n' + items.join('\n'), '');
+      if (!val) return;
+      val = val.trim();
+      if (val[0] === 'd' || val[0] === 'D') {
+        var delId = parseInt(val.slice(1), 10);
+        if (delId) api('/ai/conversations/' + delId, { method: 'DELETE' }).then(function () { toast('已删除'); }).catch(function (e) { toast(e.message); });
+      } else {
+        var id = parseInt(val, 10);
+        if (id) api('/ai/conversations/' + id).then(function (c) {
+          aiHistory = c.messages || [];
+          $('ai-chat-list').innerHTML = '';
+          aiHistory.forEach(function (m) {
+            if (m.role === 'user') appendAiMsg('user', m.content); else appendAiMsg('bot', m.content);
+          });
+          updateAiCount();
+          toast('已加载会话');
+        }).catch(function (e) { toast(e.message); });
+      }
+    }).catch(function (e) { toast(e.message); });
   };
   var aiInput = $('ai-chat-input');
   aiInput.addEventListener('keydown', function (e) {
