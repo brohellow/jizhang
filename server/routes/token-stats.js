@@ -11,7 +11,7 @@ const DATA_FILE = path.join(__dirname, '..', '..', 'data', 'token-stats.json');
 const HISTORY_FILE = path.join(__dirname, '..', '..', 'data', 'token-stats-history.jsonl');
 
 // 同步密钥（与本地小工具约定，防止任何人乱 POST）
-const SYNC_KEY = process.env.TOKEN_SYNC_KEY || 'dsh-token-sync-default';
+const SYNC_KEY = process.env.TOKEN_SYNC_KEY || ''; // 移除默认密钥兜底：未配置则禁用同步
 
 function ensureDataDir() {
   fs.mkdirSync(path.dirname(DATA_FILE), { recursive: true });
@@ -31,6 +31,9 @@ function readCurrent() {
  * 请求体: { generated_at, total, today, trend, sessions, host }
  */
 router.post('/token-sync', (req, res) => {
+  if (!SYNC_KEY) {
+    return res.status(503).json({ ok: false, error: '服务端未配置 TOKEN_SYNC_KEY，同步已禁用' });
+  }
   const key = req.headers['x-sync-key'] || '';
   if (key !== SYNC_KEY) {
     return res.status(401).json({ ok: false, error: '同步密钥不正确' });

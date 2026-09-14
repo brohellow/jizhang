@@ -147,15 +147,6 @@ import {
 
 const router = Router();
 
-// 江湖存档表
-db.exec(`CREATE TABLE IF NOT EXISTS wuxia_saves (
-  id INTEGER PRIMARY KEY AUTOINCREMENT,
-  save_key TEXT NOT NULL UNIQUE,
-  data TEXT NOT NULL,
-  created_at TEXT,
-  updated_at TEXT
-)`);
-
 // ===== AI 供应商列表缓存（5 秒，配置保存时清空） =====
 const aiProvCache = new Map();
 const AI_PROV_TTL = 5000;
@@ -166,21 +157,6 @@ setInterval(function () { const n = Date.now(); for (const [k, v] of aiProvCache
 router.use(requireAuth);
 
 ensureConfigDir();
-
-// AI 供应商表（每用户可添加多个供应商，每个含多个模型）
-db.exec(`
-CREATE TABLE IF NOT EXISTS ai_providers (
-  id INTEGER PRIMARY KEY AUTOINCREMENT,
-  user_id INTEGER NOT NULL REFERENCES users(id) ON DELETE CASCADE,
-  name TEXT NOT NULL DEFAULT '',
-  provider TEXT NOT NULL DEFAULT 'deepseek',
-  base_url TEXT NOT NULL DEFAULT '',
-  api_key TEXT NOT NULL DEFAULT '',
-  models TEXT NOT NULL DEFAULT '[]',
-  enabled INTEGER NOT NULL DEFAULT 1,
-  created_at TEXT NOT NULL DEFAULT (datetime('now','localtime'))
-);
-`);
 
 function dbProvidersOf(userId) {
   return db.prepare('SELECT * FROM ai_providers WHERE user_id = ? ORDER BY id').all(userId);

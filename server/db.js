@@ -64,6 +64,31 @@ function runMigrations() {
 
 runMigrations();
 
+// ===== 由 routes/ai.js 集中迁移过来的表（幂等） =====
+// 江湖模拟器存档表
+db.exec(`CREATE TABLE IF NOT EXISTS wuxia_saves (
+  id INTEGER PRIMARY KEY AUTOINCREMENT,
+  save_key TEXT NOT NULL UNIQUE,
+  data TEXT NOT NULL,
+  created_at TEXT,
+  updated_at TEXT
+)`);
+
+// AI 供应商表（每用户可添加多个供应商，每个含多个模型）
+db.exec(`
+CREATE TABLE IF NOT EXISTS ai_providers (
+  id INTEGER PRIMARY KEY AUTOINCREMENT,
+  user_id INTEGER NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+  name TEXT NOT NULL DEFAULT '',
+  provider TEXT NOT NULL DEFAULT 'deepseek',
+  base_url TEXT NOT NULL DEFAULT '',
+  api_key TEXT NOT NULL DEFAULT '',
+  models TEXT NOT NULL DEFAULT '[]',
+  enabled INTEGER NOT NULL DEFAULT 1,
+  created_at TEXT NOT NULL DEFAULT (datetime('now','localtime'))
+);
+`);
+
 // ===== 兼容旧表：salary_config 补充时段字段（幂等，移到 exec 外） =====
 // 这些 ALTER TABLE 已经在 001_init.sql 中包含，这里保留是为了兼容旧库
 try { db.exec("ALTER TABLE salary_config ADD COLUMN work_start TEXT NOT NULL DEFAULT '09:00'"); } catch (e) {}
