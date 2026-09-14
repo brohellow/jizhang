@@ -88,7 +88,7 @@ body { font-family:-apple-system,BlinkMacSystemFont,"PingFang SC","Microsoft YaH
   function $(id) { return document.getElementById(id); }
   function esc(s) { return String(s == null ? '' : s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;'); }
   function toast(m) { var el = $('toast'); el.textContent = m; el.classList.remove('hidden'); setTimeout(function(){ el.classList.add('hidden'); }, 2500); }
-  function fmtMoney(cents) { return '楼' + (cents / 100).toFixed(2); }
+  function fmtMoney(cents) { return '¥' + (cents / 100).toFixed(2); }
   function currentMonth() { var d = new Date(); return d.getFullYear() + '-' + String(d.getMonth()+1).padStart(2,'0'); }
   function api(path, opts) {
     opts = opts || {};
@@ -154,11 +154,11 @@ body { font-family:-apple-system,BlinkMacSystemFont,"PingFang SC","Microsoft YaH
       salaryState.breakEnd = d.break_end || '';
       salaryState.standardHours = d.standard_hours || 8;
       $('salary-total-hours').textContent = d.total_hours + ' 小时';
-      if ($('salary-base-amount')) $('salary-base-amount').textContent = fmtMoney(d.total_base_salary);
-      if ($('salary-overtime-amount')) $('salary-overtime-amount').textContent = fmtMoney(d.total_overtime_salary);
-      if ($('salary-gross-amount')) $('salary-gross-amount').textContent = fmtMoney(d.total_gross_salary);
-      if ($('salary-deduction-amount')) $('salary-deduction-amount').textContent = fmtMoney(d.total_deduction);
-      if ($('salary-net-amount')) $('salary-net-amount').textContent = fmtMoney(d.net_salary);
+      if ($('salary-base-amount')) $('salary-base-amount').textContent = '¥' + d.total_base_salary.toFixed(2);
+      if ($('salary-overtime-amount')) $('salary-overtime-amount').textContent = '¥' + d.total_overtime_salary.toFixed(2);
+      if ($('salary-gross-amount')) $('salary-gross-amount').textContent = '¥' + d.total_gross_salary.toFixed(2);
+      if ($('salary-deduction-amount')) $('salary-deduction-amount').textContent = '¥' + d.total_deduction.toFixed(2);
+      if ($('salary-net-amount')) $('salary-net-amount').textContent = '¥' + d.net_salary.toFixed(2);
       $('salary-count').textContent = d.count + ' 条';
       $('salary-summary').textContent = (d.mode === 'daily' ? '日薪' : '时薪') + ' ' + (d.mode === 'daily' ? fmtMoney(d.daily_rate) : fmtMoney(d.hourly_rate));
       if ($('salary-overtime-info')) $('salary-overtime-info').textContent = '加班工时：' + d.total_overtime_hours + ' 小时';
