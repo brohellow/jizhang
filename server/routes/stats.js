@@ -91,12 +91,18 @@ router.get('/monthly', (req, res) => {
   const ledgerId = resolveLedger(req, res);
   if (!ledgerId) return;
   const months = parseInt(req.query.months, 10) || 12;
+  const ck = 'monthly:' + ledgerId + ':' + months;
+  const cached = cacheGet(ck);
+  if (cached) return res.json(cached);
   const now = new Date();
+  // 计算范围下界，让查询走 idx_records_lookup 索引，避免 substr 全表扫描
+  const lower = new Date(now.getFullYear(), now.getMonth() - (months - 1), 1);
+  const lowerStr = lower.getFullYear() + '-' + String(lower.getMonth() + 1).padStart(2, '0') + '-01';
   const agg = {};
   db.prepare(`
     SELECT substr(record_date, 1, 7) AS m, type, SUM(amount) AS s
-    FROM records WHERE ledger_id = ? GROUP BY m, type
-  `).all(ledgerId).forEach(function (r) {
+    FROM records WHERE ledger_id = ? AND record_date >= ? GROUP BY m, type
+  `).all(ledgerId, lowerStr).forEach(function (r) {
     if (!agg[r.m]) agg[r.m] = { income: 0, expense: 0 };
     if (r.type === 'income') agg[r.m].income = r.s; else agg[r.m].expense = r.s;
   });
@@ -107,6 +113,7 @@ router.get('/monthly', (req, res) => {
     const a = agg[key] || { income: 0, expense: 0 };
     list.push({ month: key, income: a.income, expense: a.expense, net: a.income - a.expense });
   }
+  cacheSet(ck, list);
   res.json(list);
 });
 

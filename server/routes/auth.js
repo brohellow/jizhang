@@ -31,12 +31,22 @@ router.post('/register', (req, res) => {
   const exists = db.prepare('SELECT id FROM users WHERE username = ?').get(username);
   if (exists) return res.status(409).json({ error: '用户名已存在' });
 
-  const info = db.prepare('INSERT INTO users (username, password_hash, nickname) VALUES (?, ?, ?)')
-    .run(username, hashPassword(password), nickname || username);
-  const userId = Number(info.lastInsertRowid);
-  seedCategoriesForUser(userId);
-  const ledgerId = createDefaultLedger(userId, '我的账本');
-  db.prepare('UPDATE users SET current_ledger_id = ? WHERE id = ?').run(ledgerId, userId);
+  // 事务化：建用户 → 种子分类 → 默认账本 → 回写当前账本，任一步失败整体回滚，避免半成品账号
+  let userId;
+  db.exec('BEGIN');
+  try {
+    const info = db.prepare('INSERT INTO users (username, password_hash, nickname) VALUES (?, ?, ?)')
+      .run(username, hashPassword(password), nickname || username);
+    userId = Number(info.lastInsertRowid);
+    seedCategoriesForUser(userId);
+    const ledgerId = createDefaultLedger(userId, '我的账本');
+    db.prepare('UPDATE users SET current_ledger_id = ? WHERE id = ?').run(ledgerId, userId);
+    db.exec('COMMIT');
+  } catch (err) {
+    db.exec('ROLLBACK');
+    console.error('[register] 注册事务失败:', err.message);
+    return res.status(500).json({ error: '注册失败，请稍后重试' });
+  }
   const token = createSession(userId);
   res.json({ token, user: buildUserPayload(userId) });
 });

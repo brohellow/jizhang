@@ -7,7 +7,7 @@ const recCache = new Map();
 const REC_CACHE_TTL = 3000;
 function recGet(key) { const h = recCache.get(key); if (h && Date.now() - h.t < REC_CACHE_TTL) return h.data; return null; }
 function recSet(key, data) { recCache.set(key, { t: Date.now(), data }); }
-function recInvalidate() { recCache.clear(); }
+export function recInvalidate() { recCache.clear(); }
 setInterval(function () { const n = Date.now(); for (const [k, v] of recCache) if (n - v.t >= REC_CACHE_TTL * 4) recCache.delete(k); }, 60000).unref();
 import { requireAuth } from '../auth.js';
 import { todayStr, yuanToCents } from '../util.js';

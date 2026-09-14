@@ -24,13 +24,26 @@ publicRouter.post('/save-state', (req, res) => {
   if (!key || !data || typeof data !== 'object') {
     return res.status(400).json({ error: '缺少存档标识或数据' });
   }
+  // 存档限额：防任意 key / 超大 data 灌爆 SQLite
+  if (!userId && !/^[a-zA-Z0-9_-]{1,64}$/.test(key)) {
+    return res.status(400).json({ error: '存档标识不合法（需 1-64 位字母/数字/下划线/连字符）' });
+  }
+  let dataStr;
+  try {
+    dataStr = JSON.stringify(data);
+  } catch (e) {
+    return res.status(400).json({ error: '存档数据无法序列化' });
+  }
+  if (dataStr.length > 256 * 1024) {
+    return res.status(400).json({ error: '存档数据过大（超过 256KB）' });
+  }
   const ts = new Date().toISOString();
   const row = db.prepare('SELECT id FROM wuxia_saves WHERE save_key = ?').get(key);
   if (row) {
-    db.prepare('UPDATE wuxia_saves SET data = ?, updated_at = ? WHERE id = ?').run(JSON.stringify(data), ts, row.id);
+    db.prepare('UPDATE wuxia_saves SET data = ?, updated_at = ? WHERE id = ?').run(dataStr, ts, row.id);
   } else {
     db.prepare('INSERT INTO wuxia_saves (save_key, data, created_at, updated_at) VALUES (?, ?, ?, ?)')
-      .run(key, JSON.stringify(data), ts, ts);
+      .run(key, dataStr, ts, ts);
   }
   res.json({ ok: true });
 });
@@ -125,6 +138,8 @@ import { homedir } from 'node:os';
 import { db } from '../db.js';
 import { requireAuth } from '../auth.js';
 import { todayStr, currentMonthStr } from '../util.js';
+import { recInvalidate } from './records.js';
+import { cacheInvalidate } from './stats.js';
 import {
   PROVIDER_PRESETS, maskKey, ensureConfigDir, getProviders,
   configPath, configTemplate, loadFileProviders,
@@ -381,7 +396,7 @@ async function getExchangeRate(base) {
   const cachedFx = fxCache.get(baseCurrency);
   if (cachedFx && Date.now() - cachedFx.t < FX_TTL) return cachedFx.data;
   try {
-    const resp = await fetch('https://open.er-api.com/v6/latest/' + baseCurrency, { timeout: 8000 });
+    const resp = await fetch('https://open.er-api.com/v6/latest/' + baseCurrency, { signal: AbortSignal.timeout(8000) });
     if (!resp.ok) return { error: '汇率查询失败 (' + resp.status + ')' };
     const data = await resp.json();
     if (data.result !== 'success' || !data.rates) return { error: '汇率数据异常' };
@@ -435,6 +450,9 @@ function runTool(toolName, args) {
       INSERT INTO records (ledger_id, user_id, type, category_id, amount, note, record_date)
       VALUES (?, ?, ?, ?, ?, ?, ?)
     `).run(ledgerId, userId, type, cat ? cat.id : null, amountCents, (args.note || '').trim(), date);
+    // AI 记账成功后立即失效列表/统计缓存，避免 3-5 秒内看不到新记录
+    cacheInvalidate();
+    recInvalidate();
     return { ok: true, record_id: Number(info.lastInsertRowid), type: type, amount_yuan: (amountCents / 100).toFixed(2), category: args.category_name || null, date: date };
   }
   if (toolName === 'query_summary') {
@@ -674,6 +692,7 @@ router.post('/chat', async (req, res) => {
       const second = await fetch(url, {
         method: 'POST',
         headers: headers,
+        signal: AbortSignal.timeout(90000),
         body: JSON.stringify({
           model: model,
           messages: [
