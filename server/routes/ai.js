@@ -270,6 +270,59 @@ router.delete('/providers/:id', (req, res) => {
   res.json({ ok: true });
 });
 
+// ===== AI 会话云端同步 =====
+// 会话列表（id/标题/更新时间/消息条数，按更新时间倒序）
+router.get('/conversations', (req, res) => {
+  const rows = db.prepare('SELECT id, title, updated_at, messages FROM ai_conversations WHERE user_id = ? ORDER BY updated_at DESC').all(req.user.id);
+  res.json(rows.map(function (r) {
+    let count = 0;
+    try { count = JSON.parse(r.messages || '[]').length; } catch (e) {}
+    return { id: r.id, title: r.title, updated_at: r.updated_at, message_count: count };
+  }));
+});
+
+// 新建会话（返回 id）
+router.post('/conversations', (req, res) => {
+  const title = String((req.body && req.body.title) || '新对话').trim().slice(0, 100) || '新对话';
+  const messages = JSON.stringify(Array.isArray(req.body && req.body.messages) ? req.body.messages : []);
+  const info = db.prepare('INSERT INTO ai_conversations (user_id, title, messages) VALUES (?, ?, ?)')
+    .run(req.user.id, title, messages);
+  res.json({ id: Number(info.lastInsertRowid) });
+});
+
+// 读取单个会话
+router.get('/conversations/:id', (req, res) => {
+  const row = db.prepare('SELECT * FROM ai_conversations WHERE id = ? AND user_id = ?').get(Number(req.params.id), req.user.id);
+  if (!row) return res.status(404).json({ error: '会话不存在' });
+  let messages = [];
+  try { messages = JSON.parse(row.messages || '[]'); } catch (e) {}
+  res.json({ id: row.id, title: row.title, messages: messages, updated_at: row.updated_at });
+});
+
+// 更新会话（标题/消息，留空则不变）
+router.put('/conversations/:id', (req, res) => {
+  const id = Number(req.params.id);
+  const row = db.prepare('SELECT id FROM ai_conversations WHERE id = ? AND user_id = ?').get(id, req.user.id);
+  if (!row) return res.status(404).json({ error: '会话不存在' });
+  const title = (req.body && req.body.title !== undefined) ? String(req.body.title).trim().slice(0, 100) : undefined;
+  const messages = Array.isArray(req.body && req.body.messages) ? JSON.stringify(req.body.messages) : undefined;
+  if (title !== undefined && messages !== undefined) {
+    db.prepare("UPDATE ai_conversations SET title = ?, messages = ?, updated_at = datetime('now','localtime') WHERE id = ?").run(title, messages, id);
+  } else if (title !== undefined) {
+    db.prepare("UPDATE ai_conversations SET title = ?, updated_at = datetime('now','localtime') WHERE id = ?").run(title, id);
+  } else if (messages !== undefined) {
+    db.prepare("UPDATE ai_conversations SET messages = ?, updated_at = datetime('now','localtime') WHERE id = ?").run(messages, id);
+  }
+  res.json({ ok: true });
+});
+
+// 删除会话
+router.delete('/conversations/:id', (req, res) => {
+  const info = db.prepare('DELETE FROM ai_conversations WHERE id = ? AND user_id = ?').run(Number(req.params.id), req.user.id);
+  if (info.changes === 0) return res.status(404).json({ error: '会话不存在' });
+  res.json({ ok: true });
+});
+
 // 生成配置文件模板
 router.post('/settings/template', (req, res) => {
   const dir = pathMod.join(homedir(), '.jizhang');

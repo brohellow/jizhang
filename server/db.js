@@ -89,6 +89,19 @@ CREATE TABLE IF NOT EXISTS ai_providers (
 );
 `);
 
+// AI 会话表（云端同步对话历史）
+db.exec(`
+CREATE TABLE IF NOT EXISTS ai_conversations (
+  id INTEGER PRIMARY KEY AUTOINCREMENT,
+  user_id INTEGER NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+  title TEXT NOT NULL DEFAULT '新对话',
+  messages TEXT NOT NULL DEFAULT '[]',
+  created_at TEXT NOT NULL DEFAULT (datetime('now','localtime')),
+  updated_at TEXT NOT NULL DEFAULT (datetime('now','localtime'))
+);
+`);
+db.exec(`CREATE INDEX IF NOT EXISTS idx_ai_conversations_user ON ai_conversations(user_id, updated_at);`);
+
 // ===== 兼容旧表：salary_config 补充时段字段（幂等，移到 exec 外） =====
 // 这些 ALTER TABLE 已经在 001_init.sql 中包含，这里保留是为了兼容旧库
 try { db.exec("ALTER TABLE salary_config ADD COLUMN work_start TEXT NOT NULL DEFAULT '09:00'"); } catch (e) {}
