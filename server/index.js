@@ -124,7 +124,21 @@ app.use((err, req, res, next) => {
 ensureDemoUser();
 
 const port = process.env.PORT || 3000;
-app.listen(port, () => {
+const server = app.listen(port, () => {
   console.log('记账服务已启动: http://localhost:' + port);
   console.log('演示账号: demo / demo123');
 });
+
+// 优雅停机：PM2 reload / 手动 kill 时先关 HTTP 连接再关数据库，避免 WAL 硬切
+function shutdown(signal) {
+  console.log('[shutdown] 收到 ' + signal + '，开始优雅停机...');
+  server.close(() => {
+    try { db.close(); } catch (e) {}
+    console.log('[shutdown] 已关闭 HTTP 与数据库');
+    process.exit(0);
+  });
+  // 兜底：10 秒内未完成则强制退出
+  setTimeout(() => { process.exit(1); }, 10000).unref();
+}
+process.on('SIGTERM', () => shutdown('SIGTERM'));
+process.on('SIGINT', () => shutdown('SIGINT'));
