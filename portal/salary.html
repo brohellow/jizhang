@@ -109,7 +109,7 @@ body { font-family:-apple-system,BlinkMacSystemFont,"PingFang SC","Microsoft YaH
     '<div class="card">' +
       '<div class="filter-bar">' +
         '<input type="month" id="salary-month" value="' + currentMonth() + '">' +
-        '<span class="muted" id="salary-summary">鈥?/span>' +
+        '<span class="muted" id="salary-summary"></span>' +
         '<button type="button" class="btn" id="salary-config-btn">⚙️ 工资设置</button>' +
       '</div>' +
       '<div class="stats">' +
@@ -122,7 +122,7 @@ body { font-family:-apple-system,BlinkMacSystemFont,"PingFang SC","Microsoft YaH
       '</div></div>' +
         '<div class="stat"><div class="label">记录数</div><div class="value" id="salary-count">0 条</div></div>' +
       '</div>' +
-      '<div class="filter-bar" style="margin-top:12px;"><span class="muted" id="salary-overtime-info">加班工时：0 小时</span><span class="muted" id="salary-tax-info">个税：¥0.00</span><button type="button" class="btn" id="salary-export-btn" style="margin-left:auto;">📥 导出 CSV</button></div><div id="config-panel-box"></div>' +
+      '<div class="filter-bar" style="margin-top:12px;"><span class="muted" id="salary-overtime-info">加班工时：0 小时</span><span class="muted" id="salary-tax-info">个税：¥0.00</span><span class="muted" id="salary-report-info">近12月汇总加载中…</span><button type="button" class="btn" id="salary-export-btn" style="margin-left:auto;">📥 导出 CSV</button></div><div id="config-panel-box"></div>' +
     '</div>' +
     '<div class="card">' +
       '<h2>➕ 记录工作</h2>' +
@@ -140,6 +140,14 @@ body { font-family:-apple-system,BlinkMacSystemFont,"PingFang SC","Microsoft YaH
     '</div>';
 
   var salaryState = { mode: 'hourly', hourly: 3000, daily: 25000, workStart: '09:00', workEnd: '18:00', breakStart: '', breakEnd: '' };
+
+  function renderReport() {
+    api('/salary/report?months=12').then(function (d) {
+      var el = $('salary-report-info');
+      if (!el || d.error) return;
+      el.textContent = '近12月：' + d.total_hours.toFixed(1) + ' 小时 · ¥' + d.total_gross.toFixed(2);
+    });
+  }
 
   function renderSalary() {
     var month = $('salary-month').value || currentMonth();
@@ -367,6 +375,7 @@ body { font-family:-apple-system,BlinkMacSystemFont,"PingFang SC","Microsoft YaH
     });
   };
   renderSalary();
+  renderReport();
 })();
 </script>
 </body>

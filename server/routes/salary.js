@@ -356,6 +356,37 @@ router.delete('/records/:id', (req, res) => {
   res.json({ ok: true });
 });
 
+// 跨月工资报表：近 N 个月（默认 12）每月工时/应发汇总 + 合计
+router.get('/report', (req, res) => {
+  const months = Math.min(24, Math.max(1, parseInt(req.query.months, 10) || 12));
+  const cfg = getConfig(req.user.id);
+  const holidays = cfg.holidays ? JSON.parse(cfg.holidays) : [];
+
+  const now = new Date();
+  const list = [];
+  for (let i = months - 1; i >= 0; i--) {
+    const d = new Date(now.getFullYear(), now.getMonth() - i, 1);
+    const key = d.getFullYear() + '-' + String(d.getMonth() + 1).padStart(2, '0');
+    const rows = db.prepare(
+      'SELECT work_date, start_time, end_time, content FROM work_records WHERE user_id = ? AND substr(work_date, 1, 7) = ?'
+    ).all(req.user.id, key);
+    let hours = 0, gross = 0;
+    rows.forEach(function (r) {
+      const detail = calcSalaryDetail(r.work_date, r.start_time, r.end_time, r.content, cfg, holidays);
+      hours += detail.total_hours;
+      gross += detail.gross_salary;
+    });
+    list.push({ month: key, hours: Math.round(hours * 100) / 100, gross: Math.round(gross * 100) / 100 });
+  }
+  const totalHours = list.reduce(function (s, x) { return s + x.hours; }, 0);
+  const totalGross = list.reduce(function (s, x) { return s + x.gross; }, 0);
+  res.json({
+    months: list,
+    total_hours: Math.round(totalHours * 100) / 100,
+    total_gross: Math.round(totalGross * 100) / 100,
+  });
+});
+
 // 导出工资明细 CSV
 router.get('/export', (req, res) => {
   const now = new Date();
