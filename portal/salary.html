@@ -202,51 +202,6 @@ body { font-family:-apple-system,BlinkMacSystemFont,"PingFang SC","Microsoft YaH
       });
     });
   }
-      box.innerHTML = '<div class="record-list">' + d.items.map(function (it) {
-        var tags = [];
-        if (it.is_weekend) tags.push('<span style="background:rgba(251,191,36,.2);color:#fbbf24;padding:2px 6px;border-radius:4px;font-size:11px;">周末</span>');
-        if (it.is_holiday) tags.push('<span style="background:rgba(248,113,113,.2);color:#f87171;padding:2px 6px;border-radius:4px;font-size:11px;">节假日</span>');
-        var overtimeInfo = it.overtime_hours > 0 ? '<span style="color:#fbbf24;font-size:11px;margin-left:6px;">加班 ' + it.overtime_hours + 'h</span>' : '';
-        return '<div class="record-item">' +
-          '<div class="icon">⏱️</div>' +
-          '<div class="main"><div class="title">' + esc(it.content || '工作') + ' ' + tags.join(' ') + '</div>' +
-          '<div class="sub">' + it.work_date + ' · ' + it.start_time + ' - ' + it.end_time + ' · ' + it.total_hours.toFixed(2) + ' 小时' + overtimeInfo + '</div></div>' +
-          '<div class="amount" style="text-align:right;">' +
-            '<div style="font-size:12px;color:#8b8ba0;">¥' + it.base_salary.toFixed(2) + '</div>' +
-            (it.overtime_salary > 0 ? '<div style="font-size:11px;color:#fbbf24;">+¥' + it.overtime_salary.toFixed(2) + '</div>' : '') +
-            '<div style="font-weight:700;">¥' + it.gross_salary.toFixed(2) + '</div>' +
-          '</div>' +
-          '<button type="button" class="del" data-del="' + it.id + '">删除</button>' +
-        '</div>';
-      }).join('') + '</div>';
-      box.querySelectorAll('[data-del]').forEach(function (b) {
-        b.onclick = function () {
-          var id = Number(b.dataset.del);
-          if (!confirm('确定删除这条工作记录吗？')) return;
-          api('/salary/records/' + id, { method: 'DELETE' }).then(function () { toast('已删除'); renderSalary(); });
-        };
-      });
-    });
-  }
-      box.innerHTML = '<div class="record-list">' + d.items.map(function (it) {
-        return '<div class="record-item">' +
-          '<div class="icon">📒</div>' +
-          '<div class="main"><div class="title">' + esc(it.content || '工作') + '</div>' +
-          '<div class="sub">' + it.work_date + ' 路 ' + it.start_time + ' - ' + it.end_time + ' 路 ' + it.hours + ' 灏忔椂</div></div>' +
-          '<div class="amount">' + fmtMoney(it.salary) + '</div>' +
-          '<button type="button" class="del" data-del="' + it.id + '">删除</button>' +
-        '</div>';
-      }).join('') + '</div>';
-      box.querySelectorAll('[data-del]').forEach(function (b) {
-        b.onclick = function () {
-          var id = Number(b.dataset.del);
-          if (!confirm('确定删除这条工作记录吗？')) return;
-          api('/salary/records/' + id, { method: 'DELETE' }).then(function () { toast('已删除); renderSalary(); });
-        };
-      });
-    });
-  }
-
   function openConfig() {
     var box = $('config-panel-box');
     if (box.classList.contains('hidden')) {
@@ -333,20 +288,6 @@ body { font-family:-apple-system,BlinkMacSystemFont,"PingFang SC","Microsoft YaH
     } else {
       box.classList.add('hidden');
     }
-  };
-        api('/salary/config', { method: 'PUT', body: body }).then(function () {
-          toast('工资规则已保存);
-          salaryState.workStart = body.work_start;
-          salaryState.workEnd = body.work_end;
-          salaryState.breakStart = body.break_start;
-          salaryState.breakEnd = body.break_end;
-          box.classList.add('hidden');
-          renderSalary();
-        });
-      };
-    } else {
-      box.classList.add('hidden');
-    }
   }
 
   // 初始化
@@ -367,7 +308,7 @@ body { font-family:-apple-system,BlinkMacSystemFont,"PingFang SC","Microsoft YaH
     if (!start || !end) { toast('请选择开始和结束时间'); return; }
     api('/salary/records', { method: 'POST', body: { work_date: date, start_time: start, end_time: end, content: content } }).then(function (d) {
       if (d.error) { toast(d.error); return; }
-      toast('已添加工作记录);
+      toast('已添加工作记录');
       $('salary-content').value = '';
       $('salary-start').value = salaryState.workStart || '09:00';
       $('salary-end').value = salaryState.workEnd || '18:00';
