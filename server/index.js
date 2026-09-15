@@ -103,6 +103,16 @@ app.use('/api/sgs', sgsRoutes);
 app.use('/api/salary', salaryRoutes);
 app.use('/api', tokenStatsRoutes);
 
+// 健康检查（供监控脚本 / 自动拉起使用）
+app.get('/api/health', (req, res) => {
+  try {
+    db.prepare('SELECT 1').get();
+    res.json({ ok: true, db: 'ok', time: new Date().toISOString() });
+  } catch (e) {
+    res.status(500).json({ ok: false, db: 'error', error: e.message });
+  }
+});
+
 // 静态前端
 app.use(express.static(path.join(__dirname, '..', 'public')));
 app.use('/portal', express.static(path.join(__dirname, '..', 'portal')));
