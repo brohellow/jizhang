@@ -133,3 +133,26 @@
 - 测试：npm test 12/12 通过（每次改动后均验证）
 - 前端版本号：?v=20260915
 
+## 九、运维收尾（后续补充）
+
+### 1. /api/health 健康探针（7f043dc）
+- 新增 /api/health 端点，返回数据库状态，供监控/自动拉起使用
+
+### 2. 恢复并修正运维脚本（549d9e9）
+- 恢复 5 个丢失的运维脚本：health-check.sh / db-check.sh / disk-check.sh / err-monitor.sh / db-maintain.mjs
+- 修正 err-monitor.sh 日志路径 bug（/root/.pm2 → /home/ubuntu/.pm2）
+- 修正 health-check.sh 的 pm2 调用（sudo pm2 → su ubuntu -c pm2）
+- 删除坏的死代码 backup.sh（依赖未安装的 sqlite3）
+
+### 3. 清理 crontab
+- 删除 ubuntu crontab 里坏的 backup.sh 条目（root 的 backup-db.mjs 已覆盖备份）
+- root crontab 的 7 个运维任务全部引用有效脚本
+
+---
+
+## 十、当前状态（最终）
+
+- GitHub：549d9e9，master 分支干净
+- 服务器：服务运行正常，健康检查通过
+- 运维监控：备份/维护/健康检查/错误监控/磁盘监控 全部正常
+- 测试：npm test 12/12 通过
