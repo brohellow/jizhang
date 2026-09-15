@@ -15,6 +15,7 @@
 import { homedir } from 'node:os';
 import path from 'node:path';
 import fs from 'node:fs';
+import { config } from './config.js';
 
 export const PROVIDER_PRESETS = {
   deepseek: { base_url: 'https://api.deepseek.com', models: ['deepseek-chat', 'deepseek-reasoner'] },
@@ -130,15 +131,14 @@ export function loadFileProviders() {
 
 // 环境变量作为单个附加供应商（优先级最高）
 export function loadEnvProvider() {
-  const env = process.env || {};
-  if (!env.JZ_AI_API_KEY) return null;
+  if (!config.aiApiKey) return null;
   return normalizeProvider({
     name: '环境变量',
-    provider: env.JZ_AI_PROVIDER || 'deepseek',
-    base_url: env.JZ_AI_BASE_URL || '',
-    api_key: env.JZ_AI_API_KEY,
-    models: env.JZ_AI_MODEL ? [env.JZ_AI_MODEL] : undefined,
-    enabled: env.JZ_AI_ENABLED === undefined ? true : ['1', 'true', 'yes', 'on'].includes(String(env.JZ_AI_ENABLED).toLowerCase()),
+    provider: config.aiProvider,
+    base_url: config.aiBaseUrl,
+    api_key: config.aiApiKey,
+    models: config.aiModel ? [config.aiModel] : undefined,
+    enabled: config.aiEnabled,
   });
 }
 

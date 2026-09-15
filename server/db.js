@@ -3,12 +3,13 @@ import { mkdirSync, readdirSync, readFileSync } from 'node:fs';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 import crypto from 'node:crypto';
+import { config } from './config.js';
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const dataDir = path.join(__dirname, '..', 'data');
 mkdirSync(dataDir, { recursive: true });
 
-const dbPath = process.env.DB_PATH || path.join(dataDir, 'jizhang.db');
+const dbPath = config.dbPath || path.join(dataDir, 'jizhang.db');
 export const db = new DatabaseSync(dbPath);
 
 db.exec('PRAGMA journal_mode = WAL;');

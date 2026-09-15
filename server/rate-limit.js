@@ -16,8 +16,10 @@
 // ===== 白名单（特权 IP，永不限流）=====
 // 通过环境变量 JZ_RATE_LIMIT_WHITELIST 配置，逗号分隔，如：
 //   JZ_RATE_LIMIT_WHITELIST=218.1.209.181,127.0.0.1
+import { config } from './config.js';
+
 function whitelist() {
-  const raw = (process.env.JZ_RATE_LIMIT_WHITELIST || '').split(',').map(function (s) { return s.trim(); }).filter(Boolean);
+  const raw = config.rateLimitWhitelist.split(',').map(function (s) { return s.trim(); }).filter(Boolean);
   // 归一化：去掉 IPv4-mapped IPv6 的 ::ffff: 前缀
   function norm(ip) {
     return String(ip || '').replace(/^::ffff:/i, '');

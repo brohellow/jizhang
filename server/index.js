@@ -2,6 +2,7 @@ import express from 'express';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { db, ensureDemoUser } from './db.js';
+import { config } from './config.js';
 import { rateLimit, loginThrottle } from './rate-limit.js';
 import authRoutes from './routes/auth.js';
 import ledgerRoutes from './routes/ledgers.js';
@@ -123,7 +124,7 @@ app.use((err, req, res, next) => {
 // 首次启动时创建演示账号（demo / demo123）
 ensureDemoUser();
 
-const port = process.env.PORT || 3000;
+const port = config.port;
 const server = app.listen(port, () => {
   console.log('记账服务已启动: http://localhost:' + port);
   console.log('演示账号: demo / demo123');

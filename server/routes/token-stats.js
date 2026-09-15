@@ -2,6 +2,7 @@ import { Router } from 'express';
 import fs from 'node:fs';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
+import { config } from '../config.js';
 
 const router = Router();
 
@@ -11,7 +12,7 @@ const DATA_FILE = path.join(__dirname, '..', '..', 'data', 'token-stats.json');
 const HISTORY_FILE = path.join(__dirname, '..', '..', 'data', 'token-stats-history.jsonl');
 
 // 同步密钥（与本地小工具约定，防止任何人乱 POST）
-const SYNC_KEY = process.env.TOKEN_SYNC_KEY || ''; // 移除默认密钥兜底：未配置则禁用同步
+const SYNC_KEY = config.tokenSyncKey;
 
 function ensureDataDir() {
   fs.mkdirSync(path.dirname(DATA_FILE), { recursive: true });

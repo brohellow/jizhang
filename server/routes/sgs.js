@@ -1,11 +1,12 @@
 import { Router } from 'express';
 import { requireAuth } from '../auth.js';
+import { config } from '../config.js';
 
 const router = Router();
 
 // 游戏服务器地址（琉璃杀 server.js 的 HTTP API）
 // 可用环境变量 SGS_API 覆盖；默认本机 8085（与游戏服务器同机部署）
-const SGS_API = process.env.SGS_API || 'http://127.0.0.1:8085';
+const SGS_API = config.sgsApi;
 
 // 代理到游戏服务器的辅助函数
 async function sgsFetch(pathname, opts) {

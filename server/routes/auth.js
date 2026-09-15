@@ -2,6 +2,7 @@ import { Router } from 'express';
 import { db, hashPassword, verifyPassword, createSession, newToken, seedCategoriesForUser, createDefaultLedger } from '../db.js';
 import { requireAuth } from '../auth.js';
 import { recordLoginFailure, clearLoginAttempts } from '../rate-limit.js';
+import { config } from '../config.js';
 
 const router = Router();
 
@@ -130,8 +131,8 @@ router.post('/wx-login', async (req, res) => {
   try {
     const { code } = req.body || {};
     if (!code) return res.status(400).json({ error: '缺少 code' });
-    const appid = process.env.WX_APPID;
-    const secret = process.env.WX_SECRET;
+    const appid = config.wxAppid;
+    const secret = config.wxSecret;
     if (!appid || !secret) {
       return res.status(503).json({ error: '服务端未配置 WX_APPID / WX_SECRET，无法微信登录' });
     }
