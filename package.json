@@ -6,6 +6,10 @@
   "description": "记账软件：多账本、预算管理、统计报表（Web 前端 + REST API，可对接微信小程序）",
   "scripts": {
     "start": "node server/index.js",
+    "start:ai": "node server-ai/index.js",
+    "start:salary": "node server-salary/index.js",
+    "start:sgs": "node server-sgs/index.js",
+    "start:all": "node server/index.js & node server-ai/index.js & node server-salary/index.js & node server-sgs/index.js",
     "dev": "node --watch server/index.js",
     "test": "node --test test/*.test.js",
     "bump": "node scripts/bump-version.mjs"

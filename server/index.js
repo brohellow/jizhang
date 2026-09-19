@@ -10,10 +10,7 @@ import categoryRoutes from './routes/categories.js';
 import recordRoutes from './routes/records.js';
 import budgetRoutes from './routes/budgets.js';
 import statsRoutes from './routes/stats.js';
-import aiRoutes, { publicRouter as aiPublicRouter } from './routes/ai.js';
-import sgsRoutes from './routes/sgs.js';
 import tokenStatsRoutes from './routes/token-stats.js';
-import salaryRoutes from './routes/salary.js';
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const app = express();
@@ -77,12 +74,6 @@ app.use('/api/auth/login', rateLimit({
   max: 30,
   message: '登录尝试过于频繁，请 15 分钟后再试',
 }));
-// AI 免登录公用接口：每 IP 每小时 30 次（防公用 key 额度被刷穿）
-app.use('/api/ai/public-chat', rateLimit({
-  windowMs: 60 * 60 * 1000,
-  max: 30,
-  message: 'AI 使用过于频繁，请 1 小时后再试',
-}));
 // 发短信/其他敏感接口预留（暂无）
 // 全局 API：每 IP 每分钟 300 次（宽松，防刷爆）
 app.use('/api', rateLimit({
@@ -97,10 +88,6 @@ app.use('/api/categories', categoryRoutes);
 app.use('/api/records', recordRoutes);
 app.use('/api/budgets', budgetRoutes);
 app.use('/api/stats', statsRoutes);
-app.use('/api/ai', aiPublicRouter); // 免登录公用 AI（/api/ai/public-chat）
-app.use('/api/ai', aiRoutes);
-app.use('/api/sgs', sgsRoutes);
-app.use('/api/salary', salaryRoutes);
 app.use('/api', tokenStatsRoutes);
 
 // 健康检查（供监控脚本 / 自动拉起使用）
