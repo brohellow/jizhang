@@ -12,10 +12,12 @@ mkdirSync(dataDir, { recursive: true });
 const dbPath = config.dbPath || path.join(dataDir, 'jizhang.db');
 export const db = new DatabaseSync(dbPath);
 
+// busy_timeout 必须最先设置：切换 WAL 需要短暂排他锁，
+// 多进程同时打开新库时若尚未设置会直接抛 "database is locked"（无等待）
+db.exec('PRAGMA busy_timeout = 10000;');        // 锁等待 10 秒，避免 SQLITE_BUSY
 db.exec('PRAGMA journal_mode = WAL;');
 db.exec('PRAGMA foreign_keys = ON;');
 // ===== 性能 PRAGMA =====
-db.exec('PRAGMA busy_timeout = 5000;');        // 写锁等待 5 秒，避免 SQLITE_BUSY
 db.exec('PRAGMA synchronous = NORMAL;');        // WAL 下 NORMAL 足够安全且更快
 db.exec('PRAGMA cache_size = -16000;');         // 16MB 页缓存
 db.exec('PRAGMA temp_store = MEMORY;');         // 临时表/排序走内存
@@ -38,25 +40,29 @@ function runMigrations() {
     .filter(f => f.endsWith('.sql'))
     .sort(); // 按文件名排序，保证顺序执行
 
-  const executed = new Set(
-    db.prepare('SELECT name FROM _migrations').all().map(r => r.name)
-  );
-
   for (const file of files) {
-    if (executed.has(file)) continue;
-
-    console.log(`[migration] 执行 ${file}...`);
-    const sql = readFileSync(path.join(migrationsDir, file), 'utf8');
-
-    // 在事务中执行 migration
-    db.exec('BEGIN');
+    // BEGIN IMMEDIATE：立即申请写锁，把并发启动的多个后端串行化；
+    // 并在事务内复查 _migrations，消除"先查后写"之间的竞态
+    // （否则多进程同时建库会撞 UNIQUE constraint failed: _migrations.name）。
+    let begun = false;
     try {
+      db.exec('BEGIN IMMEDIATE');
+      begun = true;
+
+      const done = db.prepare('SELECT 1 FROM _migrations WHERE name = ?').get(file);
+      if (done) {
+        db.exec('COMMIT');
+        continue;
+      }
+
+      console.log(`[migration] 执行 ${file}...`);
+      const sql = readFileSync(path.join(migrationsDir, file), 'utf8');
       db.exec(sql);
       db.prepare('INSERT INTO _migrations (name) VALUES (?)').run(file);
       db.exec('COMMIT');
       console.log(`[migration] ${file} 完成`);
     } catch (err) {
-      db.exec('ROLLBACK');
+      if (begun) { try { db.exec('ROLLBACK'); } catch (e) {} }
       console.error(`[migration] ${file} 失败:`, err.message);
       throw err;
     }
