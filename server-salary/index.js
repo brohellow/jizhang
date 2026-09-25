@@ -30,8 +30,8 @@ app.use((req, res, next) => {
   next();
 });
 
-// 全局 API 限流
-app.use('/api', rateLimit({ windowMs: 60 * 1000, max: 300, message: '请求过于频繁，请稍后再试' }));
+// 全局 API 限流：每 IP 每分钟 200 次（与其余后端一致）
+app.use('/api', rateLimit({ windowMs: 60 * 1000, max: 200, message: '请求过于频繁，请稍后再试' }));
 
 app.use('/api/salary', salaryRoutes);
 

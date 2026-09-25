@@ -36,10 +36,10 @@ app.use('/api/ai/public-chat', rateLimit({
   max: 30,
   message: 'AI 使用过于频繁，请 1 小时后再试',
 }));
-// 全局 API：每 IP 每分钟 300 次（宽松，防刷爆）
+// 全局 API：每 IP 每分钟 200 次（宽松，防刷爆）
 app.use('/api', rateLimit({
   windowMs: 60 * 1000,
-  max: 300,
+  max: 200,
   message: '请求过于频繁，请稍后再试',
 }));
 
