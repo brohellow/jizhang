@@ -35,8 +35,10 @@
 
 ```bash
 npm install          # 安装 express
-npm start            # 启动，默认 http://localhost:3000
+npm start            # 启动主后端，默认 http://localhost:3000
 # 或 npm run dev（文件变更自动重启）
+# 完整功能（AI/工资/三国杀）需另起 3 个后端：
+npm run start:all    # 一次性启动 4 个后端（3000/3001/3002/3003）
 ```
 
 浏览器打开 <http://localhost:3000>。
@@ -49,13 +51,24 @@ npm start            # 启动，默认 http://localhost:3000
 ## 目录结构
 
 ```
-├── server/                  # 后端
+├── server/                  # 记账本主后端（:3000）
 │   ├── index.js             # Express 入口（静态前端 + API + 错误处理）
-│   ├── db.js                # SQLite schema、种子数据、密码哈希、演示数据
+│   ├── db.js                # SQLite schema、种子数据、密码哈希、演示数据（唯一数据层）
 │   ├── auth.js              # Bearer Token 认证中间件
+│   ├── config.js            # 集中配置（端口 / API 地址 / 环境变量）
 │   ├── ai-config.js         # AI 配置模块（~/.jizhang/ai-config.json + 环境变量覆盖）
+│   ├── rate-limit.js        # 限流中间件
 │   ├── util.js              # 日期/金额工具
-│   └── routes/              # auth / ledgers / categories / records / budgets / stats / ai
+│   └── routes/              # auth / ledgers / categories / records / budgets / stats / token-stats
+├── server-ai/               # AI 后端（:3001，AI 助手 + 江湖模拟器）
+│   ├── index.js
+│   └── routes/ai.js
+├── server-salary/           # 工资后端（:3002，工时 + 个税 + 报表）
+│   ├── index.js
+│   └── routes/salary.js
+├── server-sgs/              # 三国杀后端（:3003，房间代理）
+│   ├── index.js
+│   └── routes/sgs.js
 ├── public/                  # Web 前端（本地试用版，之后由小程序替代）
 │   ├── index.html
 │   ├── style.css
@@ -210,13 +223,18 @@ sudo apt-get install -y nodejs
 cd /opt/jizhang-app
 npm install
 
-# 3. 用 PM2 常驻运行
+# 3. 用 PM2 常驻运行（后端已拆分为 4 个独立进程，见 BACKEND_SPLIT.md）
 npm install -g pm2
-WX_APPID=xxx WX_SECRET=xxx PORT=3000 pm2 start server/index.js --name jizhang
+# 首次：用 4 进程配置启动（主 3000 + AI 3001 + 工资 3002 + 三国杀 3003）
+pm2 start ecosystem.config.example.cjs
+# 微信登录所需的 WX_APPID/WX_SECRET 写进 ecosystem 配置的 env，或用 --update-env 注入
 pm2 save && pm2 startup
 
+# 后续一键部署：./deploy.sh（拉代码 + 重启 4 进程 + 逐端口健康检查）
+
 # 4. Nginx 反向代理 + HTTPS（certbot 一键签发证书）
-#    server { server_name jizhang.example.com; location / { proxy_pass http://127.0.0.1:3000; ... } }
+#    按 deploy/nginx.conf 分流：/api/ai/→3001、/api/salary/→3002、/api/sgs/→3003，其余 /api/ 与静态→3000
+#    （/api/ai/ 等前缀必须排在 /api/ 之前）
 sudo apt-get install -y nginx certbot python3-certbot-nginx
 sudo certbot --nginx -d jizhang.example.com
 ```
@@ -231,10 +249,10 @@ sudo certbot --nginx -d jizhang.example.com
 # 方式一：服务器上直接写配置文件（推荐）
 sudo mkdir -p /root/.jizhang
 sudo nano /root/.jizhang/ai-config.json   # 参考 ai-config.example.json
-sudo pm2 restart jizhang-api
+sudo pm2 restart jizhang-ai
 
 # 方式二：环境变量注入（适合部署脚本）
-JZ_AI_PROVIDER=deepseek JZ_AI_API_KEY=sk-xxx JZ_AI_ENABLED=1 pm2 restart jizhang-api
+JZ_AI_PROVIDER=deepseek JZ_AI_API_KEY=sk-xxx JZ_AI_ENABLED=1 pm2 restart jizhang-ai
 ```
 
 也可以让用户登录后在网页「个人中心 → AI 设置」里填（存数据库，每用户独立）。
@@ -253,9 +271,9 @@ node scripts/backup-db.mjs   # 备份到 backups/，可设 JZ_BACKUP_KEEP 控制
 (crontab -l 2>/dev/null; echo "30 2 * * * /usr/bin/node /opt/jizhang/scripts/backup-db.mjs >> /opt/jizhang/backups/backup.log 2>&1") | crontab -
 ```
 
-恢复：用任意一份备份文件替换 `data/jizhang.db` 后 `pm2 restart jizhang-api` 即可。
+恢复：用任意一份备份文件替换 `data/jizhang.db` 后，重启全部后端（`pm2 restart jizhang-api jizhang-ai jizhang-salary jizhang-sgs`）即可。
 
-- 生产环境建议加一层限流（如 `express-rate-limit`）防止暴力登录。
+- 已内置三级限流（注册 10 次/时、登录 30 次/15 分钟 + 账号失败锁定、全局 API 200 次/分钟/IP），无需额外引入。
 
 ## 测试
 

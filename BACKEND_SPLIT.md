@@ -69,8 +69,8 @@ AI 后端的记账工具（add_record / query_summary / query_month_total）**�
 - package.json —— 新增 start:ai / start:salary / start:sgs / start:all 脚本
 - deploy.sh —— 改为重启 4 个后端进程 + 逐端口健康检查
 
-### 保留（未改动）
-- server/routes/ai.js、server/routes/salary.js、server/routes/sgs.js 原文件保留，但已不再被主后端 index.js 引用。上线确认无遗漏后可删除。
+### 已删除（拆分收尾）
+- server/routes/ai.js、server/routes/salary.js、server/routes/sgs.js 已删除。它们不再被主后端 index.js 引用，且与 server-ai/server-salary/server-sgs 下的新文件重复（其中 ai.js 已出现 119 行分叉），保留只会造成误改。
 
 ## 五、本地启动
 
@@ -105,7 +105,7 @@ pm2 restart jizhang-ai
 2. **迁移竞态**：4 个进程启动时都会执行 db.js 的迁移，幂等（IF NOT EXISTS + _migrations 表唯一约束），小概率竞态下多余进程回滚重试即可，无害。
 3. **Nginx 顺序**：/api/ai/、/api/salary/、/api/sgs/ 必须放在 /api/ 之前，否则会全落到主后端。
 4. **前端无需改动**：ai.html / wuxia.html / salary.html / sgs.html 仍调用原 /api/ai/*、/api/salary/*、/api/sgs/* 路径，由 Nginx 分流到对应端口，前端零改动。
-5. **原路由文件保留**：server/routes/ai.js、server/routes/salary.js、server/routes/sgs.js 暂时保留，主后端已不引用；确认稳定后可删。
+5. **原路由文件已删除**：server/routes/ai.js、server/routes/salary.js、server/routes/sgs.js 已随本次收尾删除，主后端不再引用；如需查阅历史版本可用 git log。
 
 ## 八、后续可优化方向
 
