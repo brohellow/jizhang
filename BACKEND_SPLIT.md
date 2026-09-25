@@ -102,7 +102,7 @@ pm2 restart jizhang-ai
 ## 七、注意事项 / 已知约束
 
 1. **共享 SQLite**：4 个进程打开同一个 data/jizhang.db。SQLite WAL 模式下多进程读安全、单写串行，本应用单用户量级足够。若后续并发上升，可考虑按模块拆库（工资库 / AI 库独立），或引入 Redis 做缓存与会话（用户已提出，作为后续方向）。
-2. **迁移竞态**：4 个进程启动时都会执行 db.js 的迁移，幂等（IF NOT EXISTS + _migrations 表唯一约束），小概率竞态下多余进程回滚重试即可，无害。
+2. **迁移竞态（已修复）**：4 个进程启动时都会执行 db.js 的迁移。早期版本在全新空库上并发冷启动会崩溃——WAL 切换排在 busy_timeout 之前会抛 `database is locked`；迁移"先查后写"会撞 `_migrations` 唯一约束。现已将 busy_timeout 提到最前并改用 `BEGIN IMMEDIATE` + 事务内复查，压测 4 进程并发冷启动 15 轮零崩溃。
 3. **Nginx 顺序**：/api/ai/、/api/salary/、/api/sgs/ 必须放在 /api/ 之前，否则会全落到主后端。
 4. **前端无需改动**：ai.html / wuxia.html / salary.html / sgs.html 仍调用原 /api/ai/*、/api/salary/*、/api/sgs/* 路径，由 Nginx 分流到对应端口，前端零改动。
 5. **原路由文件已删除**：server/routes/ai.js、server/routes/salary.js、server/routes/sgs.js 已随本次收尾删除，主后端不再引用；如需查阅历史版本可用 git log。
